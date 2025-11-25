@@ -3,7 +3,9 @@
   cursor: grab;
   transform: translate(0, 0);
   /* 为1*1小卡片设置统一高度 */
-  min-height: 300px;
+  min-height: 200px;
+  /* 实现正方形卡片 */
+  aspect-ratio: 1 / 1;
 }
 
 .draggable-card:hover {
@@ -68,12 +70,17 @@
   /* 强制在所有屏幕尺寸下都显示4列，确保本地和云端显示一致 */
   grid-template-columns: repeat(4, 1fr);
   transition: all 0.3s ease;
+  /* 添加最大宽度限制，防止在大屏幕上过度拉伸 */
+  max-width: 100%;
+  margin: 0 auto;
 }
 
 /* 在小屏幕设备上调整为1列 */
 @media (max-width: 767px) {
   .grid-container {
     grid-template-columns: 1fr;
+    /* 在小屏幕上减小间距 */
+    gap: 0.5rem;
   }
 }
 
@@ -86,6 +93,8 @@
 @media (min-width: 1024px) {
   .grid-container {
     grid-template-columns: repeat(4, 1fr);
+    /* 在大屏幕上限制最大宽度 */
+    max-width: 1200px;
   }
 }
 
