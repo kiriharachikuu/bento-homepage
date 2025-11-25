@@ -65,8 +65,16 @@
 .grid-container {
   display: grid;
   gap: 1rem;
-  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  /* 强制在所有屏幕尺寸下都显示4列，确保本地和云端显示一致 */
+  grid-template-columns: repeat(4, 1fr);
   transition: all 0.3s ease;
+}
+
+/* 在小屏幕设备上调整为1列 */
+@media (max-width: 767px) {
+  .grid-container {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (min-width: 768px) {

@@ -32,4 +32,12 @@ document.addEventListener('DOMContentLoaded', function() {
   
   // 初始化粉丝数更新
   updateAllFanCounts();
+  
+  // 延迟初始化地图（确保DOM已完全加载）
+  setTimeout(() => {
+    const mapCard = cardManager.cards.find(card => card.constructor.name === 'MapCard');
+    if (mapCard && typeof mapCard.initMap === 'function') {
+      mapCard.initMap();
+    }
+  }, 100);
 });
