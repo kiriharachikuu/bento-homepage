@@ -70,10 +70,10 @@
   transition: all 0.3s ease;
 }
 
-/* 在小屏幕设备上调整为2列 */
+/* 在小屏幕设备上调整为1列 */
 @media (max-width: 767px) {
   .grid-container {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: 1fr;
   }
 }
 
