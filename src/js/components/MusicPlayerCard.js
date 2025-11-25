@@ -33,7 +33,7 @@ export class MusicPlayerCard extends BaseCard {
             marginwidth="0" 
             marginheight="0" 
             width="100%" 
-            height="650" 
+            height="100%" 
             src="//music.163.com/outchain/player?type=0&id=${playlistId}&auto=1&height=430">
           </iframe>
         </div>

@@ -66,7 +66,7 @@ export function updateFooter() {
   }
   
   // 更新版权信息
-  const copyrightElement = document.getElementById('copyright-info');
+  const copyrightElement = document.getElementById('copyright');
   if (copyrightElement) {
     const currentYear = new Date().getFullYear();
     copyrightElement.textContent = `© ${currentYear} ${siteConfig.user.name}. All rights reserved.`;
