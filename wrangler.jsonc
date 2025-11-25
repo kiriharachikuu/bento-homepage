@@ -1,0 +1,7 @@
+{
+  "name": "misty-salad-2ac8", // 日志中提示的 CI 期望名称（直接复制即可，避免名称不匹配警告）
+  "compatibility_date": "2025-11-25", // 兼容性日期（用当前日期，或日志提示的日期）
+  "assets": {
+    "directory": "./dist" // 静态资源目录（Vite 构建输出目录）
+  }
+}
