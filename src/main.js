@@ -17,7 +17,22 @@ function loadAMapAPI() {
     script.type = 'text/javascript';
     script.src = 'https://webapi.amap.com/maps?v=2.0&key=f79674766531d46a40852dc77860ba25';
     script.onload = () => {
-      resolve(window.AMap);
+      // 等待AMap完全初始化
+      let attempts = 0;
+      const maxAttempts = 50; // 最多等待5秒 (50 * 100ms)
+      
+      const checkAMap = () => {
+        if (window.AMap) {
+          resolve(window.AMap);
+        } else if (attempts < maxAttempts) {
+          attempts++;
+          setTimeout(checkAMap, 100);
+        } else {
+          reject(new Error('AMap failed to initialize'));
+        }
+      };
+      
+      checkAMap();
     };
     script.onerror = () => {
       reject(new Error('Failed to load AMap API'));
@@ -39,8 +54,12 @@ async function initMapCard(cardManager) {
     if (mapCard && typeof mapCard.initMap === 'function') {
       // 给一点时间确保DOM已经渲染完成
       setTimeout(() => {
-        mapCard.initMap();
-      }, 100);
+        try {
+          mapCard.initMap();
+        } catch (error) {
+          console.error('地图初始化失败:', error);
+        }
+      }, 300);
     }
   } catch (error) {
     console.error('地图加载失败:', error);

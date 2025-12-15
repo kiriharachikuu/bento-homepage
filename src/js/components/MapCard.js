@@ -47,47 +47,62 @@ export class MapCard extends BaseCard {
   initMap() {
     // 确保地图容器已渲染
     const mapContainer = document.getElementById('amap-container');
-    if (!mapContainer) return;
+    if (!mapContainer) {
+      console.error('地图容器未找到');
+      return;
+    }
 
-    // 初始化地图
-    const map = new AMap.Map('amap-container', {
-      zoom: 15,
-      center: [120.20056, 30.18523],
-      resizeEnable: true,
-      zoomEnable: true,
-      dragEnable: true
-    });
+    // 检查AMap是否已加载
+    if (!window.AMap) {
+      console.error('AMap API未加载');
+      return;
+    }
 
-    // 使用相对路径引用地图标记图标，确保在不同环境中都能正确加载
-    const customIcon = new AMap.Icon({
-      size: new AMap.Size(36, 36),
-      image: './img/map.png',
-      imageSize: new AMap.Size(36, 36),
-      anchor: 'bottom-center'
-    });
+    try {
+      // 初始化地图
+      const map = new AMap.Map('amap-container', {
+        zoom: 15,
+        center: [120.20056, 30.18523],
+        resizeEnable: true,
+        zoomEnable: true,
+        dragEnable: true
+      });
 
-    const marker = new AMap.Marker({
-      position: [120.20056, 30.18523],
-      title: '浙江杭州',
-      icon: customIcon,
-      zIndex: 100
-    });
+      // 使用相对路径引用地图标记图标，确保在不同环境中都能正确加载
+      const customIcon = new AMap.Icon({
+        size: new AMap.Size(36, 36),
+        image: './img/map.png',
+        imageSize: new AMap.Size(36, 36),
+        anchor: 'bottom-center'
+      });
 
-    map.add(marker);
+      const marker = new AMap.Marker({
+        position: [120.20056, 30.18523],
+        title: '浙江杭州',
+        icon: customIcon,
+        zIndex: 100
+      });
 
-    const infoWindow = new AMap.InfoWindow({
-      content: '<div style="padding: 8px 12px; font-size: 0.9rem;">我的位置：浙江杭州</div>',
-      offset: new AMap.Pixel(0, -40)
-    });
+      map.add(marker);
 
-    marker.on('click', () => {
-      infoWindow.open(map, marker.getPosition());
-    });
+      const infoWindow = new AMap.InfoWindow({
+        content: '<div style="padding: 8px 12px; font-size: 0.9rem;">我的位置：浙江杭州</div>',
+        offset: new AMap.Pixel(0, -40)
+      });
 
-    // 隐藏底部版权信息
-    const copyright = document.querySelector('.amap-copyright');
-    if (copyright) {
-      copyright.style.display = 'none';
+      marker.on('click', () => {
+        infoWindow.open(map, marker.getPosition());
+      });
+
+      // 隐藏底部版权信息
+      const copyright = document.querySelector('.amap-copyright');
+      if (copyright) {
+        copyright.style.display = 'none';
+      }
+      
+      console.log('地图初始化成功');
+    } catch (error) {
+      console.error('地图初始化过程中发生错误:', error);
     }
   }
 }
