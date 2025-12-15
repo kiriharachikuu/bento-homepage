@@ -150,6 +150,17 @@
   overflow: hidden;
   padding: 0.8rem 3rem;
   position: relative;
+  width: 100%; /* 在移动端确保按钮宽度自适应 */
+  max-width: 200px; /* 限制最大宽度防止在大屏幕上过大 */
+  margin: 0 auto; /* 居中显示 */
+}
+
+/* 在小屏幕设备上减小内边距 */
+@media (max-width: 767px) {
+  .btn-23 {
+    padding: 0.6rem 1.5rem;
+    max-width: 150px;
+  }
 }
 
 .btn-23 span {
