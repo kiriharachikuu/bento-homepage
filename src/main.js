@@ -3,6 +3,50 @@ import { CardManager } from './js/components/CardManager.js'
 import { updateAllFanCounts } from './js/site.js'
 import { updateHeader, updateFooter } from './js/header.js'
 
+// 动态加载高德地图API
+function loadAMapAPI() {
+  return new Promise((resolve, reject) => {
+    // 检查是否已经加载过
+    if (window.AMap) {
+      resolve(window.AMap);
+      return;
+    }
+
+    // 创建script标签
+    const script = document.createElement('script');
+    script.type = 'text/javascript';
+    script.src = 'https://webapi.amap.com/maps?v=2.0&key=f79674766531d46a40852dc77860ba25';
+    script.onload = () => {
+      resolve(window.AMap);
+    };
+    script.onerror = () => {
+      reject(new Error('Failed to load AMap API'));
+    };
+    
+    // 添加到页面中
+    document.head.appendChild(script);
+  });
+}
+
+// 初始化地图卡片
+async function initMapCard(cardManager) {
+  try {
+    // 等待地图API加载完成
+    await loadAMapAPI();
+    
+    // 查找地图卡片
+    const mapCard = cardManager.cards.find(card => card.constructor.name === 'MapCard');
+    if (mapCard && typeof mapCard.initMap === 'function') {
+      // 给一点时间确保DOM已经渲染完成
+      setTimeout(() => {
+        mapCard.initMap();
+      }, 100);
+    }
+  } catch (error) {
+    console.error('地图加载失败:', error);
+  }
+}
+
 // 初始化网站功能
 document.addEventListener('DOMContentLoaded', function () {
   // 更新页面头部和页脚
@@ -142,12 +186,7 @@ document.addEventListener('DOMContentLoaded', function () {
   updateAllFanCounts()
   
   // 初始化地图
-  setTimeout(() => {
-    const mapCard = cardManager.cards.find(card => card.constructor.name === 'MapCard');
-    if (mapCard && mapCard.initMap) {
-      mapCard.initMap();
-    }
-  }, 100);
+  initMapCard(cardManager);
 })
 
 // 应用挤压效果到其他卡片

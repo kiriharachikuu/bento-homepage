@@ -58,9 +58,10 @@ export class MapCard extends BaseCard {
       dragEnable: true
     });
 
+    // 使用相对路径引用地图标记图标，确保在不同环境中都能正确加载
     const customIcon = new AMap.Icon({
       size: new AMap.Size(36, 36),
-      image: '/img/map.png',
+      image: './img/map.png',
       imageSize: new AMap.Size(36, 36),
       anchor: 'bottom-center'
     });
