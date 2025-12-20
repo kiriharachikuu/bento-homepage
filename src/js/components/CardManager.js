@@ -5,6 +5,8 @@ import { FollowerCard } from './FollowerCard.js';
 import { MusicPlayerCard } from './MusicPlayerCard.js';
 import { ContactCard } from './ContactCard.js';
 import { VideoCard } from './VideoCard.js';
+import { MoreVideoCard } from './MoreVideoCard.js';
+import { Modal } from './Modal.js';
 import siteConfig from '../config.js';
 
 /**
@@ -79,13 +81,16 @@ export class CardManager {
     siteConfig.videos.forEach((video, index) => {
       this.cards.push(new VideoCard(video, index));
     });
+    
+    // 更多视频卡片
+    this.cards.push(new MoreVideoCard());
   }
 
   /**
    * 渲染所有卡片到指定容器
    * @param {string} containerSelector - 容器选择器
    */
-  renderTo(containerSelector) {
+  async renderTo(containerSelector) {
     const container = document.querySelector(containerSelector);
     if (!container) {
       console.error(`未找到容器: ${containerSelector}`);
@@ -95,6 +100,57 @@ export class CardManager {
     // 清空容器
     container.innerHTML = '';
     
+    // 获取视频数据
+    let videos = [];
+    try {
+      // 尝试从localStorage获取缓存数据
+      const cachedVideos = localStorage.getItem('bilibiliVideos');
+      const cacheTime = localStorage.getItem('bilibiliVideosCacheTime');
+      const oneHour = 60 * 60 * 1000;
+      
+      // 如果缓存数据存在且未过期，直接使用缓存
+      if (cachedVideos && cacheTime && Date.now() - parseInt(cacheTime) < oneHour) {
+        videos = JSON.parse(cachedVideos);
+      } else {
+        // 从B站API获取数据
+        const bilibiliId = siteConfig.socialLinks.bilibili.split('/').pop();
+        const apiUrl = `https://api.bilibili.com/x/space/wbi/arc/search?mid=${bilibiliId}&ps=4&tid=0&pn=1&keyword=&order=pubdate`;
+        
+        const response = await fetch(apiUrl);
+        if (response.ok) {
+          const data = await response.json();
+          videos = data?.data?.list?.vlist?.map(video => ({
+            title: video.title,
+            description: video.description,
+            cover: video.pic,
+            url: `https://www.bilibili.com/video/av${video.aid}/`
+          })) || [];
+          
+          // 保存到缓存
+          localStorage.setItem('bilibiliVideos', JSON.stringify(videos));
+          localStorage.setItem('bilibiliVideosCacheTime', Date.now().toString());
+        } else {
+          throw new Error('Failed to fetch bilibili videos');
+        }
+      }
+      
+      // 更新视频卡片
+      const videoCards = this.cards.filter(card => card.constructor.name === 'VideoCard');
+      videoCards.forEach(card => {
+        const index = this.cards.indexOf(card);
+        this.cards.splice(index, 1);
+      });
+      
+      // 添加新的视频卡片
+      videos.forEach((video, index) => {
+        this.cards.push(new VideoCard(video, index));
+      });
+    } catch (error) {
+      console.error('获取B站视频失败:', error);
+      // 如果API调用失败，使用配置文件中的数据作为 fallback
+      videos = siteConfig.videos;
+    }
+
     // 创建文档片段，减少DOM重绘和回流
     const fragment = document.createDocumentFragment();
 
@@ -109,8 +165,36 @@ export class CardManager {
         }
       }
     });
-    
+
     // 一次性将所有卡片添加到DOM
     container.appendChild(fragment);
+    
+    // 添加事件监听器
+    this.addEventListeners();
+  }
+  
+  /**
+   * 添加事件监听器
+   */
+  addEventListeners() {
+    // 初始化弹窗
+    const modal = new Modal();
+    
+    // 为"了解更多"按钮添加点击事件
+    const learnMoreButton = document.querySelector('.btn-23');
+    if (learnMoreButton) {
+      learnMoreButton.addEventListener('click', (e) => {
+        e.preventDefault();
+        
+        // 从配置文件中获取弹窗内容
+        const customContent = siteConfig.user.learnMoreContent;
+        
+        // 显示弹窗
+        modal.show({
+          title: '了解更多',
+          content: customContent
+        });
+      });
+    }
   }
 }

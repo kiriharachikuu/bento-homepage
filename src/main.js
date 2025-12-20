@@ -1,5 +1,6 @@
 import './style.css'
 import { CardManager } from './js/components/CardManager.js'
+import { VideoListModal } from './js/components/VideoListModal.js'
 import { updateAllFanCounts } from './js/site.js'
 import { updateHeader, updateFooter } from './js/header.js'
 
@@ -86,7 +87,7 @@ async function initMapCard(cardManager) {
 }
 
 // 初始化网站功能
-document.addEventListener('DOMContentLoaded', function () {
+document.addEventListener('DOMContentLoaded', async function () {
   // 更新页面头部和页脚
   updateHeader();
   updateFooter();
@@ -98,7 +99,7 @@ document.addEventListener('DOMContentLoaded', function () {
   cardManager.createAllCards()
 
   // 渲染所有卡片到网格容器
-  cardManager.renderTo('.grid-container')
+  await cardManager.renderTo('.grid-container')
   
   // 添加拖拽功能
   const container = document.querySelector('.grid-container')
@@ -188,7 +189,7 @@ document.addEventListener('DOMContentLoaded', function () {
                           (x <= horizontalMidpoint && y > verticalMidpoint)
       
       // 应用挤压效果到其他卡片
-      applyShiftEffect(target, insertAfter)
+      applyShiftEffect(target, insertAfter, columnGap, rowGap)
       
       // 插入占位符
       if (insertAfter) {
@@ -233,10 +234,36 @@ document.addEventListener('DOMContentLoaded', function () {
   
   // 初始化地图
   initMapCard(cardManager);
+  
+  // 初始化视频列表弹窗
+  const videoListModal = new VideoListModal();
+  
+  // 添加"更多视频"卡片点击事件监听
+  function addMoreVideoCardListener() {
+    const moreVideoCard = document.getElementById('more-video-card');
+    if (moreVideoCard) {
+      moreVideoCard.addEventListener('click', () => {
+        videoListModal.show();
+      });
+    }
+  }
+  
+  // 初始添加事件监听
+  addMoreVideoCardListener();
+  
+  // 监听DOM变化，确保动态添加的卡片也能触发事件
+  const observer = new MutationObserver(() => {
+    addMoreVideoCardListener();
+  });
+  
+  observer.observe(document.body, {
+    childList: true,
+    subtree: true
+  });
 })
 
 // 应用挤压效果到其他卡片
-function applyShiftEffect(target, insertAfter) {
+function applyShiftEffect(target, insertAfter, columnGap, rowGap) {
   const container = document.querySelector('.grid-container')
   const containerRect = container.getBoundingClientRect()
   const allCards = Array.from(document.querySelectorAll('.draggable-card:not(.dragging)'))

@@ -45,11 +45,26 @@ export class MapCard extends BaseCard {
    * 初始化地图
    */
   initMap() {
+    console.log('开始初始化地图...');
+    
     // 确保地图容器已渲染
     const mapContainer = document.getElementById('amap-container');
     if (!mapContainer) {
       console.error('地图容器未找到');
       return;
+    }
+    
+    console.log('地图容器找到:', mapContainer);
+    
+    // 确保地图容器有正确的尺寸
+    const containerRect = mapContainer.getBoundingClientRect();
+    console.log('地图容器尺寸:', containerRect.width, 'x', containerRect.height);
+    
+    // 如果容器高度为0，手动设置高度
+    if (containerRect.height === 0) {
+      console.warn('地图容器高度为0，手动设置高度');
+      mapContainer.style.height = '256px'; // 设置一个固定高度
+      console.log('手动设置后容器高度:', mapContainer.offsetHeight);
     }
 
     // 检查AMap是否已加载
@@ -58,6 +73,8 @@ export class MapCard extends BaseCard {
       return;
     }
 
+    console.log('AMap API已加载:', !!window.AMap);
+
     try {
       // 初始化地图
       const map = new AMap.Map('amap-container', {
@@ -65,25 +82,32 @@ export class MapCard extends BaseCard {
         center: [120.20056, 30.18523],
         resizeEnable: true,
         zoomEnable: true,
-        dragEnable: true
+        dragEnable: true,
+        pitchEnable: false,
+        rotateEnable: false
       });
 
-      // 使用绝对路径引用地图标记图标，确保在Cloudflare等不同环境中都能正确加载
-      const customIcon = new AMap.Icon({
-        size: new AMap.Size(36, 36),
-        image: '/img/map.png',
-        imageSize: new AMap.Size(36, 36),
-        anchor: 'bottom-center'
+      console.log('地图实例创建成功:', map);
+
+      // 添加事件监听，确保地图加载完成
+      map.on('complete', () => {
+        console.log('地图加载完成');
       });
 
+      // 添加地图加载失败事件监听
+      map.on('error', (error) => {
+        console.error('地图加载失败:', error);
+      });
+
+      // 使用默认图标，避免自定义图标加载问题
       const marker = new AMap.Marker({
         position: [120.20056, 30.18523],
         title: '浙江杭州',
-        icon: customIcon,
         zIndex: 100
       });
 
       map.add(marker);
+      console.log('地图标记添加成功');
 
       const infoWindow = new AMap.InfoWindow({
         content: '<div style="padding: 8px 12px; font-size: 0.9rem;">我的位置：浙江杭州</div>',
@@ -95,14 +119,18 @@ export class MapCard extends BaseCard {
       });
 
       // 隐藏底部版权信息
-      const copyright = document.querySelector('.amap-copyright');
-      if (copyright) {
-        copyright.style.display = 'none';
-      }
-      
-      console.log('地图初始化成功');
+      setTimeout(() => {
+        const copyright = document.querySelector('.amap-copyright');
+        if (copyright) {
+          copyright.style.display = 'none';
+        }
+      }, 500);
+
+      console.log('地图初始化完成');
     } catch (error) {
       console.error('地图初始化过程中发生错误:', error);
+      // 添加错误信息到页面，方便调试
+      mapContainer.innerHTML = `<div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #666; font-size: 14px;">地图加载失败: ${error.message}</div>`;
     }
   }
 }
