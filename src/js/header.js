@@ -4,30 +4,40 @@ import siteConfig from './config.js';
  * 更新页面头部内容
  */
 export function updateHeader() {
+  // 验证siteConfig.site是否存在
+  if (!siteConfig || !siteConfig.site) {
+    console.error('配置缺失：siteConfig.site');
+    return;
+  }
+
   // 更新网站标题
   const titleElement = document.querySelector('title');
-  if (titleElement) {
+  if (titleElement && siteConfig.site.title) {
     titleElement.textContent = siteConfig.site.title;
   }
 
   // 更新页面头部内容
   const headerElement = document.getElementById('page-header');
   if (headerElement) {
+    // 使用空值合并运算符提供默认值
+    const titleIcon = siteConfig.site.titleIcon || '';
+    const title = siteConfig.site.title || '';
+    
     headerElement.innerHTML = `
       <div class="mb-6 md:mb-0">
         <div class="bg-gray-200 border-2 border-dashed rounded-xl w-16 h-16">
-          <img src="${siteConfig.site.titleIcon}" max-height="100%">
+          ${titleIcon ? `<img src="${titleIcon}" max-height="100%">` : ''}
         </div>
       </div>
       <div class="mb-6 md:mb-0">
-        <span class="font-bold text-xl">${siteConfig.site.title}</span>
+        <span class="font-bold text-xl">${title}</span>
       </div>
     `;
   }
 
   // 更新 favicon
   const faviconElement = document.querySelector('link[rel="icon"]');
-  if (faviconElement) {
+  if (faviconElement && siteConfig.site.favicon) {
     faviconElement.href = siteConfig.site.favicon;
   }
 }
@@ -69,6 +79,8 @@ export function updateFooter() {
   const copyrightElement = document.getElementById('copyright');
   if (copyrightElement) {
     const currentYear = new Date().getFullYear();
-    copyrightElement.textContent = `© ${currentYear} ${siteConfig.user.name}. All rights reserved.`;
+    // 使用空值合并运算符提供默认值
+    const userName = siteConfig?.user?.name || 'Unknown';
+    copyrightElement.textContent = `© ${currentYear} ${userName}. All rights reserved.`;
   }
 }

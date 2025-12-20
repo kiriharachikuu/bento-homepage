@@ -15,54 +15,73 @@ function loadAMapAPI() {
     // 创建script标签
     const script = document.createElement('script');
     script.type = 'text/javascript';
+    script.crossOrigin = 'anonymous'; // 处理跨域问题
     script.src = 'https://webapi.amap.com/maps?v=2.0&key=f79674766531d46a40852dc77860ba25';
-    script.onload = () => {
-      // 等待AMap完全初始化
-      let attempts = 0;
-      const maxAttempts = 50; // 最多等待5秒 (50 * 100ms)
-      
-      const checkAMap = () => {
-        if (window.AMap) {
-          resolve(window.AMap);
-        } else if (attempts < maxAttempts) {
-          attempts++;
-          setTimeout(checkAMap, 100);
-        } else {
-          reject(new Error('AMap failed to initialize'));
-        }
-      };
-      
-      checkAMap();
+    
+    // 检查AMap是否已经在全局存在
+    const checkAMap = () => {
+      if (window.AMap) {
+        resolve(window.AMap);
+      }
     };
+    
+    // 监听地图API加载完成事件
+    script.onload = () => {
+      // 地图API加载完成后立即检查
+      checkAMap();
+      // 为了确保AMap完全初始化，再延迟100ms检查一次
+      setTimeout(checkAMap, 100);
+    };
+    
+    // 监听错误事件
     script.onerror = () => {
       reject(new Error('Failed to load AMap API'));
     };
     
     // 添加到页面中
     document.head.appendChild(script);
+    
+    // 设置超时机制
+    setTimeout(() => {
+      if (!window.AMap) {
+        reject(new Error('AMap failed to initialize within timeout'));
+      }
+    }, 5000); // 5秒超时
   });
 }
 
 // 初始化地图卡片
 async function initMapCard(cardManager) {
   try {
+    // 查找地图卡片
+    const mapCard = cardManager.cards.find(card => card.constructor.name === 'MapCard');
+    if (!mapCard || typeof mapCard.initMap !== 'function') {
+      return;
+    }
+    
+    // 确保DOM完全渲染完成
+    await new Promise(resolve => {
+      if (document.readyState === 'complete') {
+        resolve();
+      } else {
+        window.addEventListener('load', resolve);
+      }
+    });
+    
     // 等待地图API加载完成
     await loadAMapAPI();
     
-    // 查找地图卡片
-    const mapCard = cardManager.cards.find(card => card.constructor.name === 'MapCard');
-    if (mapCard && typeof mapCard.initMap === 'function') {
-      // 给一点时间确保DOM已经渲染完成
-      setTimeout(() => {
-        try {
-          mapCard.initMap();
-        } catch (error) {
-          console.error('地图初始化失败:', error);
-        }
-      }, 300);
+    // 确保地图容器已经存在于DOM中
+    const mapContainer = document.getElementById('amap-container');
+    if (!mapContainer) {
+      // 如果地图容器不存在，延迟500ms再尝试
+      await new Promise(resolve => setTimeout(resolve, 500));
     }
+    
+    // 初始化地图
+    mapCard.initMap();
   } catch (error) {
-    console.error('地图加载失败:', error);
+    console.error('地图加载或初始化失败:', error);
   }
 }
 
@@ -82,8 +101,13 @@ document.addEventListener('DOMContentLoaded', function () {
   cardManager.renderTo('.grid-container')
   
   // 添加拖拽功能
-  const draggables = document.querySelectorAll('.draggable-card')
   const container = document.querySelector('.grid-container')
+  let draggables = document.querySelectorAll('.draggable-card')
+  
+  // 缓存容器样式信息
+  const containerComputed = getComputedStyle(container)
+  const columnGap = parseFloat(containerComputed.columnGap) || 0
+  const rowGap = parseFloat(containerComputed.rowGap) || 0
   
   // 为每个可拖拽元素添加索引属性
   draggables.forEach((draggable, index) => {
@@ -125,10 +149,10 @@ document.addEventListener('DOMContentLoaded', function () {
       draggedItem.classList.remove('dragging', 'dragging-active')
       
       // 移除所有占位符
-      document.querySelectorAll('.placeholder').forEach(ph => ph.remove())
+      container.querySelectorAll('.placeholder').forEach(ph => ph.remove())
       
       // 移除所有挤压效果
-      document.querySelectorAll('.draggable-card').forEach(card => {
+      draggables.forEach(card => {
         card.classList.remove('shift-left', 'shift-right', 'shift-up', 'shift-down')
         card.style.removeProperty('transition')
       })
@@ -145,11 +169,11 @@ document.addEventListener('DOMContentLoaded', function () {
     e.dataTransfer.dropEffect = 'move'
     
     const target = e.target.closest('.draggable-card:not(.dragging)')
-    const draggedItem = document.querySelector('.draggable-card.dragging')
+    const draggedItem = container.querySelector('.draggable-card.dragging')
     
     if (target && draggedItem && draggedItem._placeholder) {
       // 移除现有的占位符
-      document.querySelectorAll('.placeholder').forEach(ph => ph.remove())
+      container.querySelectorAll('.placeholder').forEach(ph => ph.remove())
       
       // 计算放置位置
       const rect = target.getBoundingClientRect()
@@ -182,20 +206,23 @@ document.addEventListener('DOMContentLoaded', function () {
   container.addEventListener('drop', (e) => {
     e.preventDefault()
     
-    const draggedItem = document.querySelector('.draggable-card.dragging')
+    const draggedItem = container.querySelector('.draggable-card.dragging')
     if (draggedItem && draggedItem._placeholder && draggedItem._placeholder.parentNode) {
       // 交换元素位置
       draggedItem._placeholder.parentNode.insertBefore(draggedItem, draggedItem._placeholder)
       
       // 更新所有卡片的索引
       updateCardIndices()
+      
+      // 更新draggables集合
+      draggables = container.querySelectorAll('.draggable-card')
     }
     
     // 移除占位符
-    document.querySelectorAll('.placeholder').forEach(ph => ph.remove())
+    container.querySelectorAll('.placeholder').forEach(ph => ph.remove())
     
     // 移除挤压效果
-    document.querySelectorAll('.draggable-card').forEach(card => {
+    draggables.forEach(card => {
       card.classList.remove('shift-left', 'shift-right', 'shift-up', 'shift-down')
       card.style.removeProperty('transition')
     })
@@ -210,22 +237,17 @@ document.addEventListener('DOMContentLoaded', function () {
 
 // 应用挤压效果到其他卡片
 function applyShiftEffect(target, insertAfter) {
+  const container = document.querySelector('.grid-container')
+  const containerRect = container.getBoundingClientRect()
   const allCards = Array.from(document.querySelectorAll('.draggable-card:not(.dragging)'))
   const targetIndex = Array.from(target.parentNode.children).indexOf(target)
   
   // 移除之前的挤压效果
-  document.querySelectorAll('.draggable-card').forEach(card => {
+  allCards.forEach(card => {
     card.classList.remove('shift-left', 'shift-right', 'shift-up', 'shift-down')
   })
   
-  // 根据网格布局计算行和列
-  const container = document.querySelector('.grid-container')
-  const containerRect = container.getBoundingClientRect()
-  const containerComputed = getComputedStyle(container)
-  const columnGap = parseFloat(containerComputed.columnGap) || 0
-  const rowGap = parseFloat(containerComputed.rowGap) || 0
-  
-  // 计算每列的宽度
+  // 计算每列的宽度 (使用缓存的间隙值)
   const cardRect = target.getBoundingClientRect()
   const cardWidth = cardRect.width
   const cardHeight = cardRect.height
@@ -233,9 +255,8 @@ function applyShiftEffect(target, insertAfter) {
   const rowHeight = cardHeight + rowGap
   
   // 计算目标卡片所在的行列
-  const targetRect = target.getBoundingClientRect()
-  const relativeLeft = targetRect.left - containerRect.left
-  const relativeTop = targetRect.top - containerRect.top
+  const relativeLeft = cardRect.left - containerRect.left
+  const relativeTop = cardRect.top - containerRect.top
   const targetCol = Math.round(relativeLeft / columnWidth)
   const targetRow = Math.round(relativeTop / rowHeight)
   

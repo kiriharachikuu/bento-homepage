@@ -94,12 +94,23 @@ export class CardManager {
 
     // 清空容器
     container.innerHTML = '';
+    
+    // 创建文档片段，减少DOM重绘和回流
+    const fragment = document.createDocumentFragment();
 
     // 渲染所有卡片
     this.cards.forEach(card => {
       if (card.render) {
-        container.innerHTML += card.render();
+        const cardElement = document.createElement('div');
+        cardElement.innerHTML = card.render();
+        // 将卡片内容添加到文档片段
+        while (cardElement.firstChild) {
+          fragment.appendChild(cardElement.firstChild);
+        }
       }
     });
+    
+    // 一次性将所有卡片添加到DOM
+    container.appendChild(fragment);
   }
 }
