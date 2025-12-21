@@ -22,7 +22,7 @@ export class MapCard extends BaseCard {
    */
   getContent() {
     return `
-      <div class="bg-gray-200 border-2 border-dashed rounded-xl w-full h-64 mb-4">
+      <div class="bg-gray-200 rounded-xl w-full h-64 mb-4">
         <div id="amap-container" style="width: 100%; height: 16rem; border-radius: 8px; overflow: hidden; border: none;"></div>
       </div>
       <div class="flex justify-between items-center">

@@ -1,4 +1,6 @@
 // 网站配置文件 - 存放所有可配置的内容
+import { videoData } from './videoData.js';
+
 const siteConfig = {
   // 网站基本信息
   site: {
@@ -81,32 +83,7 @@ const siteConfig = {
   },
 
   // 视频作品列表
-  videos: [
-    {
-      title: "玻璃弹珠",
-      description: "ChiliChill四周年生贺曲",
-      cover: "/img/video/40cb87af46a9627941d628917202429943dd1a30.jpg",
-      url: "https://www.bilibili.com/video/BV1aW421c7Gw/"
-    },
-    {
-      title: "回信Retter",
-      description: "ChiliChill五周年生贺曲",
-      cover: "/img/video/946ca84f5e2937210f40e08cb98274e744bf2f34.jpg",
-      url: "https://www.bilibili.com/video/BV1TF9pYDELQ/"
-    },
-    {
-      title: "与你共舞半生梦",
-      description: "33P新年原创曲",
-      cover: "/img/video/7b2cb42a108f355d9499cb592b75be275a93d453.jpg",
-      url: "https://www.bilibili.com/video/BV1FafDYcEj5/"
-    },
-    {
-      title: "迈向光的我",
-      description: "2023纳西妲生日会",
-      cover: "/img/video/ae8bebc8548a8ce6c5a7f46b4a5e7b08579a733e.jpg",
-      url: "https://www.bilibili.com/video/BV1kc411d7Sm/"
-    }
-  ],
+  videos: videoData,
 
   // 联系方式
   contactText: `哔哩哔哩：@知空空睡大觉

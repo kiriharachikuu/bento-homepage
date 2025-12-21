@@ -33,11 +33,11 @@ export class CommentCard extends BaseCard {
           </svg>
         </a>
       </div>
-      <p class="text-gray-700 italic">承接干声修对业务，原创曲/填词曲/合唱企划欢迎戳我~</p>
-      <div class="mt-4 text-sm text-gray-600">2025/9/13</div>
+      <p class="comment-text italic">承接干声修对业务，原创曲/填词曲/合唱企划欢迎戳我~</p>
+      <div class="comment-date text-sm">2025/9/13</div>
       <br />
-      <p class="text-gray-700 italic">Hello, Sekai</p>
-      <div class="mt-4 text-sm text-gray-600">2025/10/25</div>
+      <p class="comment-text italic">Hello, Sekai</p>
+      <div class="comment-date text-sm">2025/10/25</div>
     `;
   }
 }

@@ -77,10 +77,19 @@ export class VideoListModal {
    * @returns {string} 视频卡片HTML
    */
   generateVideoCard(video, index) {
+    // 检查是否需要显示合作角标
+    const hasCooperationBadge = video.cooperation || false;
+    const badgeHTML = hasCooperationBadge ? `
+      <div class="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full transform -rotate-12">
+        合作
+      </div>
+    ` : '';
+    
     return `
       <div class="bg-white rounded-2xl shadow-lg from-purple-50 to-indigo-100 p-4 fade-in" style="animation-delay: ${index * 0.1}s;">
-        <div class="bg-gray-200 border-2 border-dashed rounded-xl w-full h-48 mb-4 overflow-hidden">
+        <div class="bg-gray-200 rounded-xl w-full h-48 mb-4 overflow-hidden relative">
           <img src="${video.cover}" class="w-full h-full object-cover transition-transform duration-500 hover:scale-105">
+          ${badgeHTML}
         </div>
         <div class="flex justify-between items-center">
           <div>
@@ -151,12 +160,10 @@ export class VideoListModal {
   /**
    * 显示弹窗
    */
-  async show() {
+  show() {
     try {
-      // 从API获取视频数据
-      const videos = await this.fetchBilibiliVideos();
-      // 更新视频列表
-      this.videos = videos;
+      // 直接使用配置文件中的视频数据
+      this.videos = siteConfig.videos;
       // 渲染视频列表
       this.renderVideoList();
       
@@ -197,56 +204,7 @@ export class VideoListModal {
     }
   }
   
-  /**
-   * 获取B站视频数据
-   * @returns {Promise<Array>} 视频列表
-   */
-  async fetchBilibiliVideos() {
-    try {
-      // 尝试从localStorage获取缓存数据
-      const cachedVideos = localStorage.getItem('bilibiliVideos');
-      const cacheTime = localStorage.getItem('bilibiliVideosCacheTime');
-      const oneHour = 60 * 60 * 1000;
-      
-      // 如果缓存数据存在且未过期，直接使用缓存
-      if (cachedVideos && cacheTime && Date.now() - parseInt(cacheTime) < oneHour) {
-        return JSON.parse(cachedVideos);
-      }
-      
-      // 这里使用B站公开API获取视频列表
-      // 注意：实际项目中应该使用后端代理或第三方API服务
-      // 此处仅为演示，实际使用时可能会遇到跨域问题
-      const bilibiliId = siteConfig.socialLinks.bilibili.split('/').pop();
-      const apiUrl = `https://api.bilibili.com/x/space/wbi/arc/search?mid=${bilibiliId}&ps=10&tid=0&pn=1&keyword=&order=pubdate`;
-      
-      // 使用fetch API获取数据
-      const response = await fetch(apiUrl);
-      if (!response.ok) {
-        throw new Error('Failed to fetch bilibili videos');
-      }
-      
-      const data = await response.json();
-      
-      // 转换数据格式
-      const videos = data?.data?.list?.vlist?.map(video => ({
-        title: video.title,
-        description: video.description,
-        cover: video.pic,
-        url: `https://www.bilibili.com/video/av${video.aid}/`,
-        publishDate: new Date(video.created * 1000).toLocaleDateString()
-      })) || [];
-      
-      // 保存到缓存
-      localStorage.setItem('bilibiliVideos', JSON.stringify(videos));
-      localStorage.setItem('bilibiliVideosCacheTime', Date.now().toString());
-      
-      return videos;
-    } catch (error) {
-      console.error('获取B站视频失败:', error);
-      // 如果API调用失败，使用配置文件中的数据作为 fallback
-      return siteConfig.videos;
-    }
-  }
+
   
   /**
    * 关闭弹窗

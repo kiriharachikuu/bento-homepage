@@ -16,7 +16,7 @@ export class FollowerCard extends BaseCard {
   constructor(config) {
     super({
       id: `${config.platform}-follower-card`,
-      classes: `bg-gradient-to-br from-${config.color}-50 to-${config.color}-100`,
+      classes: `bg-gradient-to-br from-${config.color}-50 to-${config.color}-100 follower-card`,
       ...config
     });
     this.platform = config.platform;

@@ -1,10 +1,191 @@
 /* 引入公共样式 */
 @import '/public/css/index.css';
 
+/* CSS变量 - 浅色主题 */
+:root {
+  --bg-color: #f9fafb;
+  --text-color: #111827;
+  --card-bg: #ffffff;
+  --card-hover: #f3f4f6;
+  --border-color: #e5e7eb;
+  --shadow-color: rgba(0, 0, 0, 0.1);
+  --link-color: #3b82f6;
+  --link-hover: #2563eb;
+  --gray-100: #f3f4f6;
+  --gray-200: #e5e7eb;
+  --gray-600: #4b5563;
+  --gray-700: #374151;
+  --gray-800: #1f2937;
+  --backdrop-blur: rgba(255, 255, 255, 0.3);
+}
+
+/* 深色主题CSS变量将通过JavaScript动态设置 */
+
 /* 移除与Tailwind CSS冲突的样式，使用Tailwind的工具类代替 */
 #app {
   width: 100%;
   height: 100%;
+}
+
+/* 应用全局主题变量 */
+body {
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  transition: all 0.3s ease;
+}
+
+/* 卡片主题 */
+.bg-white {
+  background-color: var(--card-bg);
+}
+
+.bg-gray-100 {
+  background-color: var(--gray-100);
+}
+
+.bg-gray-200 {
+  background-color: var(--gray-200);
+}
+
+/* 文本颜色主题 */
+.text-gray-600 {
+  color: var(--gray-600);
+}
+
+.text-gray-700 {
+  color: var(--gray-700);
+}
+
+.text-gray-800 {
+  color: var(--gray-800);
+}
+
+/* 评论卡片固定文本颜色 */
+.comment-text {
+  color: #4b5563;
+}
+
+.comment-date {
+  color: #6b7280;
+}
+
+/* 标题图标容器背景色 */
+.bg-card {
+  background-color: var(--card-bg);
+}
+
+/* 粉丝数卡片固定样式 */
+.follower-card {
+  background-color: var(--card-bg);
+}
+
+.follower-card .bg-white {
+  background-color: #ffffff !important;
+}
+
+.follower-card .font-bold {
+  color: #111827 !important;
+}
+
+.follower-card .text-gray-600 {
+  color: #6b7280 !important;
+}
+
+.follower-card .bg-gray-900 {
+  background-color: #111827 !important;
+}
+
+.follower-card .text-white {
+  color: #ffffff !important;
+}
+
+/* 下载页面深色模式样式 */
+.night-mode .download-container {
+  background-color: var(--card-bg);
+}
+
+.night-mode .download-title {
+  color: var(--text-color);
+}
+
+.night-mode .download-category {
+  background-color: #383838 !important;
+}
+
+.night-mode .download-category-title {
+  color: var(--text-color);
+}
+
+.night-mode .download-category-desc {
+  color: var(--gray-600);
+}
+
+.night-mode .download-list {
+  background-color: var(--card-bg);
+}
+
+.night-mode .download-list-title {
+  color: var(--text-color);
+}
+
+.night-mode .bg-gray-50 {
+  background-color: var(--gray-100);
+}
+
+.night-mode .bg-gray-200 {
+  background-color: var(--gray-200);
+}
+
+.night-mode .text-gray-700 {
+  color: var(--gray-600);
+}
+
+.night-mode .text-gray-500 {
+  color: var(--gray-700);
+}
+
+/* 下载列表项目悬停样式 */
+.night-mode .hover\:bg-gray-100:hover {
+  background-color: var(--gray-100);
+}
+
+/* 导航栏背景色 */
+.bg-nav {
+  background-color: var(--nav-bg);
+}
+
+/* 导航按钮选中状态 */
+.bg-selected {
+  background-color: var(--card-selected);
+}
+
+.text-selected {
+  color: var(--text-selected);
+}
+
+.text-normal {
+  color: var(--text-normal);
+}
+
+/* 边框颜色主题 */
+
+/* 阴影主题 */
+.shadow-lg {
+  box-shadow: 0 10px 15px -3px var(--shadow-color), 0 4px 6px -4px var(--shadow-color);
+}
+
+/* 液态玻璃效果主题 */
+.bg-white\/30 {
+  background-color: var(--backdrop-blur);
+}
+
+/* 按钮主题 */
+.bg-blue-500 {
+  background-color: var(--link-color);
+}
+
+.bg-blue-500:hover {
+  background-color: var(--link-hover);
 }
 
 /* 保留必要的自定义样式 */
@@ -22,5 +203,10 @@
 }
 
 .read-the-docs {
-  color: #888;
+  color: var(--gray-600);
+}
+
+/* 平滑过渡效果 */
+* {
+  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
 }

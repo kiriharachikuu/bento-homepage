@@ -9,6 +9,7 @@ function loadAMapAPI() {
   return new Promise((resolve, reject) => {
     // 检查是否已经加载过
     if (window.AMap) {
+      console.log('AMap API已经加载，直接返回');
       resolve(window.AMap);
       return;
     }
@@ -17,37 +18,51 @@ function loadAMapAPI() {
     const script = document.createElement('script');
     script.type = 'text/javascript';
     script.crossOrigin = 'anonymous'; // 处理跨域问题
+    script.defer = true; // 添加defer属性，确保脚本按照顺序执行
     script.src = 'https://webapi.amap.com/maps?v=2.0&key=f79674766531d46a40852dc77860ba25';
-    
-    // 检查AMap是否已经在全局存在
-    const checkAMap = () => {
-      if (window.AMap) {
-        resolve(window.AMap);
-      }
-    };
     
     // 监听地图API加载完成事件
     script.onload = () => {
-      // 地图API加载完成后立即检查
-      checkAMap();
-      // 为了确保AMap完全初始化，再延迟100ms检查一次
-      setTimeout(checkAMap, 100);
+      console.log('AMap API脚本加载完成');
+      // 等待AMap完全初始化
+      setTimeout(() => {
+        if (window.AMap) {
+          console.log('AMap API初始化成功');
+          resolve(window.AMap);
+        } else {
+          console.error('AMap API加载完成但未初始化');
+          reject(new Error('AMap API loaded but not initialized'));
+        }
+      }, 300); // 增加延迟时间，确保AMap完全初始化
     };
     
     // 监听错误事件
-    script.onerror = () => {
+    script.onerror = (event) => {
+      console.error('AMap API脚本加载失败:', event);
+      // 提供降级方案：显示地图加载失败信息
+      const mapContainer = document.getElementById('amap-container');
+      if (mapContainer) {
+        mapContainer.innerHTML = `<div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #666; font-size: 14px; padding: 20px; text-align: center;">地图加载失败，可能是网络问题或域名未授权</div>`;
+      }
       reject(new Error('Failed to load AMap API'));
     };
     
     // 添加到页面中
+    console.log('开始加载AMap API脚本');
     document.head.appendChild(script);
     
     // 设置超时机制
     setTimeout(() => {
       if (!window.AMap) {
+        console.error('AMap API加载超时');
+        // 提供降级方案
+        const mapContainer = document.getElementById('amap-container');
+        if (mapContainer) {
+          mapContainer.innerHTML = `<div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #666; font-size: 14px; padding: 20px; text-align: center;">地图加载超时，可能是网络问题</div>`;
+        }
         reject(new Error('AMap failed to initialize within timeout'));
       }
-    }, 5000); // 5秒超时
+    }, 8000); // 增加超时时间到8秒
   });
 }
 
@@ -73,16 +88,40 @@ async function initMapCard(cardManager) {
     await loadAMapAPI();
     
     // 确保地图容器已经存在于DOM中
-    const mapContainer = document.getElementById('amap-container');
+    let mapContainer = document.getElementById('amap-container');
     if (!mapContainer) {
-      // 如果地图容器不存在，延迟500ms再尝试
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // 如果地图容器不存在，延迟重试
+      await new Promise(resolve => {
+        const checkContainer = () => {
+          mapContainer = document.getElementById('amap-container');
+          if (mapContainer) {
+            resolve();
+          } else {
+            // 最多重试3次
+            if (checkContainer.retryCount === undefined) {
+              checkContainer.retryCount = 0;
+            }
+            checkContainer.retryCount++;
+            if (checkContainer.retryCount < 3) {
+              setTimeout(checkContainer, 200);
+            } else {
+              resolve(); // 即使失败也继续，让initMap处理
+            }
+          }
+        };
+        checkContainer();
+      });
     }
     
     // 初始化地图
     mapCard.initMap();
   } catch (error) {
     console.error('地图加载或初始化失败:', error);
+    // 提供降级方案：确保地图容器显示错误信息
+    const mapContainer = document.getElementById('amap-container');
+    if (mapContainer) {
+      mapContainer.innerHTML = `<div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #666; font-size: 14px; padding: 20px; text-align: center;">地图加载失败: ${error.message}</div>`;
+    }
   }
 }
 
@@ -99,7 +138,7 @@ document.addEventListener('DOMContentLoaded', async function () {
   cardManager.createAllCards()
 
   // 渲染所有卡片到网格容器
-  await cardManager.renderTo('.grid-container')
+  cardManager.renderTo('.grid-container')
   
   // 添加拖拽功能
   const container = document.querySelector('.grid-container')

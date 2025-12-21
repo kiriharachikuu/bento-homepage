@@ -23,9 +23,18 @@ export class VideoCard extends BaseCard {
    * @returns {string} 卡片内容HTML
    */
   getContent() {
+    // 检查是否需要显示合作角标
+    const hasCooperationBadge = this.video.cooperation || false;
+    const badgeHTML = hasCooperationBadge ? `
+      <div class="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full transform -rotate-12">
+        合作
+      </div>
+    ` : '';
+    
     return `
-      <div class="bg-gray-200 border-2 border-dashed rounded-xl w-full h-48 mb-4 overflow-hidden">
+      <div class="bg-gray-200 rounded-xl w-full h-48 mb-4 overflow-hidden relative">
         <img src="${this.video.cover}" class="w-full h-full object-cover" />
+        ${badgeHTML}
       </div>
       <div class="flex justify-between items-center">
         <div>

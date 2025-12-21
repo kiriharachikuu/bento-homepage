@@ -22,7 +22,7 @@ export class MoreVideoCard extends BaseCard {
    */
   getContent() {
     return `
-      <div class="bg-gray-200 border-2 border-dashed rounded-xl w-full h-48 mb-4 overflow-hidden">
+      <div class="bg-gray-200 rounded-xl w-full h-48 mb-4 overflow-hidden">
         <img src="img/418e5134ae74f641796e6a8b8c4fc48328826850.png" class="w-full h-full object-cover">
       </div>
       <div class="flex justify-between items-center">

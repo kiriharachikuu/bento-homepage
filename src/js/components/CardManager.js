@@ -77,8 +77,8 @@ export class CardManager {
     // 联系方式卡片
     this.cards.push(new ContactCard());
     
-    // 视频卡片
-    siteConfig.videos.forEach((video, index) => {
+    // 视频卡片 - 只显示前四个视频
+    siteConfig.videos.slice(0, 4).forEach((video, index) => {
       this.cards.push(new VideoCard(video, index));
     });
     
@@ -90,8 +90,9 @@ export class CardManager {
    * 渲染所有卡片到指定容器
    * @param {string} containerSelector - 容器选择器
    */
-  async renderTo(containerSelector) {
-    const container = document.querySelector(containerSelector);
+  renderTo(containerSelector) {
+    // 优先使用home-page容器
+    const container = document.querySelector('#home-page') || document.querySelector(containerSelector);
     if (!container) {
       console.error(`未找到容器: ${containerSelector}`);
       return;
@@ -100,57 +101,6 @@ export class CardManager {
     // 清空容器
     container.innerHTML = '';
     
-    // 获取视频数据
-    let videos = [];
-    try {
-      // 尝试从localStorage获取缓存数据
-      const cachedVideos = localStorage.getItem('bilibiliVideos');
-      const cacheTime = localStorage.getItem('bilibiliVideosCacheTime');
-      const oneHour = 60 * 60 * 1000;
-      
-      // 如果缓存数据存在且未过期，直接使用缓存
-      if (cachedVideos && cacheTime && Date.now() - parseInt(cacheTime) < oneHour) {
-        videos = JSON.parse(cachedVideos);
-      } else {
-        // 从B站API获取数据
-        const bilibiliId = siteConfig.socialLinks.bilibili.split('/').pop();
-        const apiUrl = `https://api.bilibili.com/x/space/wbi/arc/search?mid=${bilibiliId}&ps=4&tid=0&pn=1&keyword=&order=pubdate`;
-        
-        const response = await fetch(apiUrl);
-        if (response.ok) {
-          const data = await response.json();
-          videos = data?.data?.list?.vlist?.map(video => ({
-            title: video.title,
-            description: video.description,
-            cover: video.pic,
-            url: `https://www.bilibili.com/video/av${video.aid}/`
-          })) || [];
-          
-          // 保存到缓存
-          localStorage.setItem('bilibiliVideos', JSON.stringify(videos));
-          localStorage.setItem('bilibiliVideosCacheTime', Date.now().toString());
-        } else {
-          throw new Error('Failed to fetch bilibili videos');
-        }
-      }
-      
-      // 更新视频卡片
-      const videoCards = this.cards.filter(card => card.constructor.name === 'VideoCard');
-      videoCards.forEach(card => {
-        const index = this.cards.indexOf(card);
-        this.cards.splice(index, 1);
-      });
-      
-      // 添加新的视频卡片
-      videos.forEach((video, index) => {
-        this.cards.push(new VideoCard(video, index));
-      });
-    } catch (error) {
-      console.error('获取B站视频失败:', error);
-      // 如果API调用失败，使用配置文件中的数据作为 fallback
-      videos = siteConfig.videos;
-    }
-
     // 创建文档片段，减少DOM重绘和回流
     const fragment = document.createDocumentFragment();
 

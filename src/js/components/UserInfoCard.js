@@ -25,9 +25,9 @@ export class UserInfoCard extends BaseCard {
     return `
       <div class="flex items-start mb-20">
         <div class="relative mr-4">
-          <div class="bg-gray-200 border-2 border-dashed rounded-xl w-16 h-16"></div>
-          <div class="absolute inset-0 rounded-full bg-green-400 opacity-70 pulse-animation">
-            <img src="/img/84007943719010668e3e16e8196f029858bf7b12.jpg" />
+          <div class="bg-card rounded-xl w-16 h-16"></div>
+          <div class="absolute inset-0 rounded-xl bg-green-400 opacity-70 pulse-animation">
+            <img src="/img/84007943719010668e3e16e8196f029858bf7b12.jpg" class="w-full h-full rounded-xl object-cover" />
           </div>
         </div>
         <div>
