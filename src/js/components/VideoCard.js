@@ -39,7 +39,7 @@ export class VideoCard extends BaseCard {
       <div class="flex justify-between items-center">
         <div>
           <h3 class="font-bold text-lg">${this.video.title}</h3>
-          <p class="text-gray-600 text-sm">${this.video.description}</p>
+          <p class="text-sm" style="color: var(--gray-600)">${this.video.description}</p>
         </div>
         <a href="${this.video.url}" target="_blank" rel="noopener noreferrer" class="p-2 bg-gray-900 text-white rounded-full hover:bg-gray-700 inline-flex items-center justify-center">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">

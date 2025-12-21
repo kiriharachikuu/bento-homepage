@@ -52,7 +52,7 @@ export class VideoListModal {
     this.modalElement.innerHTML = `
       <div class="modal-header py-4 border-b flex justify-between items-center">
         <h2 class="text-2xl font-bold" id="modal-title">${this.config.title}</h2>
-        <button class="modal-close text-gray-500 hover:text-gray-700 focus:outline-none" id="modal-close">
+        <button class="modal-close" style="color: var(--gray-600);" onmouseover="this.style.color = getComputedStyle(document.documentElement).getPropertyValue('--gray-800')" onmouseout="this.style.color = getComputedStyle(document.documentElement).getPropertyValue('--gray-600')" id="modal-close">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
           </svg>
@@ -86,15 +86,15 @@ export class VideoListModal {
     ` : '';
     
     return `
-      <div class="bg-card rounded-2xl shadow-lg from-purple-50 to-indigo-100 p-4 fade-in" style="animation-delay: ${index * 0.1}s;">
-        <div class="bg-gray-200 rounded-xl w-full h-48 mb-4 overflow-hidden relative">
+      <div class="bg-card rounded-2xl shadow-lg p-4 fade-in" style="animation-delay: ${index * 0.1}s;">
+        <div class="rounded-xl w-full h-48 mb-4 overflow-hidden relative" style="background-color: var(--gray-200);">
           <img src="${video.cover}" class="w-full h-full object-cover transition-transform duration-500 hover:scale-105">
           ${badgeHTML}
         </div>
         <div class="flex justify-between items-center">
           <div>
             <h3 class="font-bold text-lg line-clamp-2">${video.title}</h3>
-            <p class="text-gray-600 text-sm line-clamp-2">${video.description}</p>
+            <p class="text-sm line-clamp-2" style="color: var(--gray-600);">${video.description}</p>
           </div>
           <a href="${video.url}" target="_blank" rel="noopener noreferrer" class="p-2 bg-gray-900 text-white rounded-full hover:bg-gray-700 inline-flex items-center justify-center transition-colors">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">

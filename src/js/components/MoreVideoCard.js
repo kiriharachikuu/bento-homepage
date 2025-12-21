@@ -28,7 +28,7 @@ export class MoreVideoCard extends BaseCard {
       <div class="flex justify-between items-center">
         <div>
           <h3 class="font-bold text-lg">更多视频</h3>
-          <p class="text-gray-600 text-sm">查看更多B站视频更新</p>
+          <p class="text-sm" style="color: var(--gray-600)">查看更多B站视频更新</p>
         </div>
         <button class="p-2 bg-gray-900 text-white rounded-full hover:bg-gray-700 inline-flex items-center justify-center">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">

@@ -32,10 +32,10 @@ export class UserInfoCard extends BaseCard {
         </div>
         <div>
           <h1 class="text-3xl font-bold">${siteConfig.user.name}</h1>
-          <p class="text-gray-600">${siteConfig.user.title}</p>
+          <p style="color: var(--gray-600)">${siteConfig.user.title}</p>
         </div>
       </div>
-      <p class="text-gray-700 mb-6 leading-relaxed">
+      <p class="mb-6 leading-relaxed" style="color: var(--gray-700)">
         ${siteConfig.user.description}
       </p>
       <a href="${siteConfig.user.learnMoreLink}" class="btn-23">

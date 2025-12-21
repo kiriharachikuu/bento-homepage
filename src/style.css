@@ -76,7 +76,12 @@ body {
 
 /* 粉丝数卡片固定样式 */
 .follower-card {
-  background-color: var(--card-bg);
+  background-color: #ffffff;
+}
+
+/* 粉丝数标签固定颜色 */
+.follower-label {
+  color: #6b7280;
 }
 
 .follower-card .bg-white {
@@ -142,6 +147,10 @@ body {
 
 .night-mode .text-gray-500 {
   color: var(--gray-700);
+}
+
+.night-mode .text-gray-600 {
+  color: var(--gray-600);
 }
 
 /* 下载列表项目悬停样式 */

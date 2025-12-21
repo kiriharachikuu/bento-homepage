@@ -38,7 +38,7 @@ export class MusicPlayerCard extends BaseCard {
           </iframe>
         </div>
         
-        <div class="mt-4 text-center text-sm text-gray-600">
+        <div class="mt-4 text-center text-sm" style="color: var(--gray-600)">
           精选音乐播放列表
         </div>
       </div>

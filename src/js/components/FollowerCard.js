@@ -41,7 +41,7 @@ export class FollowerCard extends BaseCard {
             <h3 class="font-bold text-lg">${this.title}</h3>
           </div>
           <div id="${this.platform}" class="text-3xl font-bold mb-2">获取中...</div>
-          <div class="text-gray-600 text-sm">粉丝数</div>
+          <div class="follower-label text-sm">粉丝数</div>
         </div>
         <div class="flex justify-between items-center mt-auto">
           <div>

@@ -50,7 +50,7 @@ export class Modal {
     this.modalElement.innerHTML = `
       <div class="modal-header px-6 py-4 border-b flex justify-between items-center">
         <h2 class="text-xl font-bold" id="modal-title">${this.config.title}</h2>
-        <button class="modal-close text-gray-500 hover:text-gray-700 focus:outline-none" id="modal-close">
+        <button class="modal-close" style="color: var(--gray-600);" onmouseover="this.style.color = getComputedStyle(document.documentElement).getPropertyValue('--gray-800')" onmouseout="this.style.color = getComputedStyle(document.documentElement).getPropertyValue('--gray-600')" id="modal-close">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
           </svg>

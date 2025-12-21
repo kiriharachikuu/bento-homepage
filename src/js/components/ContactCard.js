@@ -24,7 +24,7 @@ export class ContactCard extends BaseCard {
   getContent() {
     return `
       <h2 class="font-bold text-2xl mb-5">如何联系到我？</h2>
-      <p class="text-gray-700 mb-10 leading-relaxed whitespace-pre-line">
+      <p class="mb-10 leading-relaxed whitespace-pre-line" style="color: var(--gray-700)">
         ${siteConfig.contactText}
       </p>
       <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center">

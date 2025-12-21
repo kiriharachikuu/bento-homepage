@@ -408,7 +408,7 @@ export function updateFooter() {
   // 更新第一行文本（制作者）
   const madeByElement = document.getElementById('made-by');
   if (madeByElement) {
-    madeByElement.innerHTML = 'Made by <a href="https://github.com/KiriharaChikuu" target="_blank" rel="noopener noreferrer" class="text-gray-600 hover:text-gray-900">KiriharaChikuu</a>';
+    madeByElement.innerHTML = 'Made by <a href="https://github.com/KiriharaChikuu" target="_blank" rel="noopener noreferrer" class="hover:text-link-hover" style="color: var(--gray-600);">KiriharaChikuu</a>';
   }
   
   // 更新第二行文本（技术支持）
@@ -417,11 +417,11 @@ export function updateFooter() {
     poweredByElement.innerHTML = `
       <span class="inline-flex items-center justify-center">
         Powered by 
-        <a href="https://tailwindcss.com" target="_blank" rel="noopener noreferrer" class="inline-flex items-center ml-1 text-gray-600 hover:text-gray-900">
+        <a href="https://tailwindcss.com" target="_blank" rel="noopener noreferrer" class="inline-flex items-center ml-1 hover:text-link-hover" style="color: var(--gray-600);">
           <img src="/tw.svg" alt="Tailwind CSS Logo" class="h-4 w-4 mr-1">Tailwind CSS
         </a>
         <span class="mx-1">&</span>
-        <a href="https://vitejs.dev" target="_blank" rel="noopener noreferrer" class="inline-flex items-center text-gray-600 hover:text-gray-900">
+        <a href="https://vitejs.dev" target="_blank" rel="noopener noreferrer" class="inline-flex items-center hover:text-link-hover" style="color: var(--gray-600);">
           <img src="/vite.svg" alt="Vite Logo" class="h-4 w-4 mr-1">Vite
         </a>
       </span>
@@ -431,7 +431,7 @@ export function updateFooter() {
   // 更新第三行文本（灵感来源）
   const inspiredByElement = document.getElementById('inspired-by');
   if (inspiredByElement) {
-    inspiredByElement.innerHTML = 'Inspired by <a href="https://bento.me" target="_blank" rel="noopener noreferrer" class="text-gray-600 hover:text-gray-900">bento.me</a>';
+    inspiredByElement.innerHTML = 'Inspired by <a href="https://bento.me" target="_blank" rel="noopener noreferrer" class="hover:text-link-hover" style="color: var(--gray-600);">bento.me</a>';
   }
   
   // 更新版权信息
