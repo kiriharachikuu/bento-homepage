@@ -12,7 +12,7 @@ export class VideoCard extends BaseCard {
   constructor(video, index) {
     super({
       id: `video-card-${index}`,
-      classes: 'bg-white from-purple-50 to-indigo-100'
+      classes: 'from-purple-50 to-indigo-100'
     });
     this.video = video;
     this.index = index;

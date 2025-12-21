@@ -11,7 +11,7 @@ export class MapCard extends BaseCard {
   constructor(config) {
     super({
       id: 'map-card',
-      classes: 'bg-white rounded-2xl p-6 shadow-lg fade-in',
+      classes: 'fade-in',
       ...config
     });
   }

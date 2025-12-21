@@ -11,7 +11,7 @@ export class MoreVideoCard extends BaseCard {
   constructor(config) {
     super({
       id: 'more-video-card',
-      classes: 'bg-white from-purple-50 to-indigo-100 cursor-pointer hover:shadow-xl transition-all duration-300',
+      classes: 'from-purple-50 to-indigo-100 cursor-pointer hover:shadow-xl transition-all duration-300',
       ...config
     });
   }
