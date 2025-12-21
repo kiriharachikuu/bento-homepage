@@ -26,7 +26,7 @@ const siteConfig = {
 
         <div class="p-4 rounded-lg" style="background-color: var(--gray-100);">
           <p class="font-medium mb-2" style="color: var(--text-color);">关于翻唱：</p>
-          <p class="leading-relaxed">最开始应该是从20年初疫情，关在家闲得没事录了几首。到年中开始花钱买了设备，开启了卧室唱见的路。23年开始上大二后有了更多的时间录歌，甚至直接把设备不远万里搬来了学校（感谢舍友不杀之恩），24年开始接触了更多的朋友，也开始参与更多的企划～<br><span style="color: var(--link-color);">【今年疑似解锁作词作曲】</span></p>
+          <p class="leading-relaxed">最开始应该是从20年初疫情，关在家闲得没事录了几首。到年中开始花钱买了设备，开启了卧室唱见的路。23年开始上大二后有了更多的时间录歌，甚至直接把设备不远万里搬来了学校（感谢舍友不杀之恩），24年开始接触了更多的朋友，也开始参与更多的企划～</p>
         </div>
         
         <div class="p-4 rounded-lg" style="background-color: var(--gray-100);">
