@@ -46,7 +46,7 @@ export class VideoListModal {
     
     // 创建弹窗容器
     this.modalElement = document.createElement('div');
-    this.modalElement.className = 'modal-container bg-white rounded-2xl shadow-2xl max-w-5xl w-full max-h-[90vh] overflow-y-auto overflow-x-hidden transform scale-95 opacity-0 transition-all duration-300 z-50 px-4 sm:px-6';
+    this.modalElement.className = 'modal-container bg-card rounded-2xl shadow-2xl max-w-5xl w-full max-h-[90vh] overflow-y-auto overflow-x-hidden transform scale-95 opacity-0 transition-all duration-300 z-50 px-4 sm:px-6';
     
     // 构建弹窗HTML结构
     this.modalElement.innerHTML = `
@@ -86,7 +86,7 @@ export class VideoListModal {
     ` : '';
     
     return `
-      <div class="bg-white rounded-2xl shadow-lg from-purple-50 to-indigo-100 p-4 fade-in" style="animation-delay: ${index * 0.1}s;">
+      <div class="bg-card rounded-2xl shadow-lg from-purple-50 to-indigo-100 p-4 fade-in" style="animation-delay: ${index * 0.1}s;">
         <div class="bg-gray-200 rounded-xl w-full h-48 mb-4 overflow-hidden relative">
           <img src="${video.cover}" class="w-full h-full object-cover transition-transform duration-500 hover:scale-105">
           ${badgeHTML}

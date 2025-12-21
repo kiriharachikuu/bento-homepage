@@ -44,7 +44,7 @@ export class Modal {
     
     // 创建弹窗容器
     this.modalElement = document.createElement('div');
-    this.modalElement.className = 'modal-container bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto transform scale-95 opacity-0 transition-all duration-300 z-50';
+    this.modalElement.className = 'modal-container bg-card rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto transform scale-95 opacity-0 transition-all duration-300 z-50';
     
     // 构建弹窗HTML结构
     this.modalElement.innerHTML = `
