@@ -46,11 +46,11 @@ export class VideoListModal {
     
     // 创建弹窗容器
     this.modalElement = document.createElement('div');
-    this.modalElement.className = 'modal-container bg-white rounded-2xl shadow-2xl max-w-5xl w-full max-h-[90vh] overflow-y-auto transform scale-95 opacity-0 transition-all duration-300 z-50';
+    this.modalElement.className = 'modal-container bg-white rounded-2xl shadow-2xl max-w-5xl w-full max-h-[90vh] overflow-y-auto overflow-x-hidden transform scale-95 opacity-0 transition-all duration-300 z-50 px-4 sm:px-6';
     
     // 构建弹窗HTML结构
     this.modalElement.innerHTML = `
-      <div class="modal-header px-6 py-4 border-b flex justify-between items-center">
+      <div class="modal-header py-4 border-b flex justify-between items-center">
         <h2 class="text-2xl font-bold" id="modal-title">${this.config.title}</h2>
         <button class="modal-close text-gray-500 hover:text-gray-700 focus:outline-none" id="modal-close">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -58,7 +58,7 @@ export class VideoListModal {
           </svg>
         </button>
       </div>
-      <div class="modal-body px-6 py-6" id="modal-content">
+      <div class="modal-body py-6" id="modal-content">
         <div id="video-list-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <!-- 视频列表将通过JavaScript动态生成 -->
         </div>
