@@ -10,11 +10,14 @@ export class MusicPlayerCard extends BaseCard {
    * @param {Object} config - 卡片配置
    */
   constructor(config) {
-    super({
+    // 合并配置，确保始终包含md:row-span-2类
+    const mergedConfig = {
       id: 'music-player-card',
-      classes: 'md:row-span-2',
-      ...config
-    });
+      ...config,
+      // 强制添加md:row-span-2类，确保音乐卡片始终为1*2样式
+      classes: `${config?.classes || ''} md:row-span-2`.trim()
+    };
+    super(mergedConfig);
   }
 
   /**

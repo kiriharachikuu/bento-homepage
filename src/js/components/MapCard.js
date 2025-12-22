@@ -25,20 +25,14 @@ export class MapCard extends BaseCard {
    */
   getContent() {
     return `
-      <div class="relative w-full h-64 mb-4">
+      <div class="relative w-full h-64 mb-4" style="min-height: 256px;">
         <!-- 地图容器 -->
-        <div id="amap-container" class="absolute inset-0 rounded-xl overflow-hidden"></div>
-        
-        <!-- 加载指示器 -->
-        <div id="map-loading" class="absolute inset-0 flex items-center justify-center bg-white bg-opacity-70 rounded-xl z-10">
-          <div class="flex flex-col items-center">
-            <div class="w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mb-2"></div>
-            <span class="text-sm text-gray-600">加载地图中...</span>
-          </div>
-        </div>
-        
-        <!-- 错误提示容器 -->
-        <div id="map-error" class="absolute inset-0 flex items-center justify-center bg-white bg-opacity-70 rounded-xl z-10 hidden"></div>
+        <div id="amap-container" class="absolute inset-0 rounded-xl overflow-hidden" style="width: 100%; height: 100%; background-color: #f0f0f0;"></div>
+        <!-- 添加静态地图图片作为备选 -->
+        <img id="static-map" src="https://restapi.amap.com/v3/staticmap?location=120.198803,30.182417&zoom=15&size=400*256&markers=mid,,A:120.197074,30.182509&key=f79674766531d46a40852dc77860ba25" 
+             class="absolute inset-0 w-full h-full object-cover rounded-xl" 
+             alt="浙江杭州地图" 
+             style="display: none;">
       </div>
       <div class="flex justify-between items-center">
         <div class="flex items-center">
@@ -48,64 +42,49 @@ export class MapCard extends BaseCard {
           <span>我现在所在</span>
         </div>
         <button id="map-refresh" class="p-2 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors duration-200">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg id="refresh-icon" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
           </svg>
         </button>
       </div>
+      <style>
+        /* 旋转动画 */
+        @keyframes rotate360 {
+          from {
+            transform: rotate(0deg);
+          }
+          to {
+            transform: rotate(360deg);
+          }
+        }
+        
+        .spin-animation {
+          animation: rotate360 0.5s ease-in-out;
+        }
+      </style>
     `;
   }
 
   /**
-   * 显示加载状态
+   * 显示加载状态（已移除加载指示器，此方法保留以兼容现有代码）
    */
   showLoading() {
-    const loadingEl = document.getElementById('map-loading');
-    if (loadingEl) {
-      loadingEl.classList.remove('hidden');
-    }
-    
-    const errorEl = document.getElementById('map-error');
-    if (errorEl) {
-      errorEl.classList.add('hidden');
-    }
+    console.log('showLoading called, but loading indicator has been removed');
   }
 
   /**
-   * 隐藏加载状态
+   * 隐藏加载状态（已移除加载指示器，此方法保留以兼容现有代码）
    */
   hideLoading() {
-    const loadingEl = document.getElementById('map-loading');
-    if (loadingEl) {
-      loadingEl.classList.add('hidden');
-    }
+    console.log('hideLoading called, but loading indicator has been removed');
   }
 
   /**
-   * 显示错误信息
+   * 显示错误信息（已移除错误提示，此方法保留以兼容现有代码）
    * @param {string} message - 错误信息
    */
   showError(message) {
-    const errorEl = document.getElementById('map-error');
-    if (errorEl) {
-      errorEl.innerHTML = `<div class="flex flex-col items-center p-4 text-center">
-        <i class="fa-solid fa-exclamation-circle text-red-500 text-xl mb-2"></i>
-        <span class="text-sm text-gray-700 mb-2">${message}</span>
-        <button id="map-retry" class="px-3 py-1 bg-blue-500 text-white text-xs rounded-full hover:bg-blue-600 transition-colors">
-          重试
-        </button>
-      </div>`;
-      errorEl.classList.remove('hidden');
-      
-      // 添加重试按钮事件
-      const retryBtn = errorEl.querySelector('#map-retry');
-      if (retryBtn) {
-        retryBtn.addEventListener('click', () => {
-          this.initMap();
-        });
-      }
-    }
-    
+    console.error('Map error:', message);
     this.hideLoading();
   }
 
@@ -115,14 +94,16 @@ export class MapCard extends BaseCard {
   async initMap() {
     console.log('MapCard.initMap() 被调用');
     
-    // 显示加载状态
-    this.showLoading();
+    // 获取静态地图元素
+    const staticMap = document.getElementById('static-map');
     
     // 确保地图容器已渲染
     const mapContainer = document.getElementById('amap-container');
     if (!mapContainer) {
-      console.error('地图容器未找到');
-      this.showError('地图容器未找到');
+      console.error('地图容器未找到，显示静态地图');
+      if (staticMap) {
+        staticMap.style.display = 'block';
+      }
       return;
     }
     
@@ -137,6 +118,14 @@ export class MapCard extends BaseCard {
       console.log('地图容器高度为0，已设置为256px');
     }
 
+    // 添加超时机制，如果动态地图加载超过3秒，就显示静态地图
+    const timeoutId = setTimeout(() => {
+      console.error('动态地图加载超时，显示静态地图');
+      if (staticMap) {
+        staticMap.style.display = 'block';
+      }
+    }, 3000);
+
     // 确保地图API已加载
     try {
       if (!window.AMap) {
@@ -148,7 +137,11 @@ export class MapCard extends BaseCard {
       }
     } catch (error) {
       console.error('加载地图API失败:', error);
-      this.showError('地图API加载失败，请检查网络连接');
+      // API加载失败，显示静态地图
+      if (staticMap) {
+        staticMap.style.display = 'block';
+      }
+      clearTimeout(timeoutId);
       return;
     }
 
@@ -156,55 +149,47 @@ export class MapCard extends BaseCard {
     
     // 确保AMap对象可用
     if (!window.AMap) {
-      console.error('地图API加载失败，AMap对象未定义');
-      this.showError('地图API加载失败，请刷新页面重试');
+      console.error('地图API加载失败，AMap对象未定义，显示静态地图');
+      if (staticMap) {
+        staticMap.style.display = 'block';
+      }
+      clearTimeout(timeoutId);
       return;
     }
 
     try {
-      // 地图配置，添加隐藏logo选项
+      // 最简化的地图配置，只保留必要的参数
       this.map = new AMap.Map('amap-container', {
         zoom: 15,
         center: [120.198803, 30.182417],
         resizeEnable: true,
-        viewMode: '2D',
-        // 隐藏地图自带的控件和logo
-        layers: [new AMap.TileLayer()],
-        showLabel: true,
-        showIndoorMap: false
+        viewMode: '2D'
       });
 
       console.log('地图实例创建成功');
+      
+      // 地图加载成功，隐藏静态地图
+      if (staticMap) {
+        staticMap.style.display = 'none';
+      }
+      clearTimeout(timeoutId);
 
-      // 添加事件监听
-      this.map.on('complete', () => {
-        console.log('地图加载完成');
-        this.hideLoading();
-        
-        // 地图加载完成后隐藏logo
-        this.hideAMapLogo();
-      });
+      // 地图加载完成后隐藏logo
+      this.hideAMapLogo();
 
-      this.map.on('error', (error) => {
-        console.error('地图加载失败:', error);
-        this.showError('地图加载失败，请重试');
-      });
+      // 添加自定义标记点（使用默认图标，避免路径问题）
+      try {
+        this.marker = new AMap.Marker({
+          position: [120.197074, 30.182509],
+          title: '浙江杭州'
+        });
 
-      // 添加自定义标记点
-      this.marker = new AMap.Marker({
-        position: [120.197074, 30.182509],
-        title: '浙江杭州',
-        // 使用自定义图标
-        icon: new AMap.Icon({
-          size: new AMap.Size(50, 50), // 图标尺寸
-          image: '/img/map.png', // 图标地址
-          imageSize: new AMap.Size(50, 50) // 图标大小
-        }),
-        offset: new AMap.Pixel(-16, -16) // 图标偏移，使图标中心与定位点重合
-      });
-
-      this.map.add(this.marker);
-      console.log('地图标记添加成功');
+        this.map.add(this.marker);
+        console.log('地图标记添加成功');
+      } catch (markerError) {
+        console.error('地图标记添加失败:', markerError);
+        // 标记添加失败不影响地图显示
+      }
       
       // 添加刷新按钮事件
       const refreshBtn = document.getElementById('map-refresh');
@@ -217,8 +202,12 @@ export class MapCard extends BaseCard {
         console.warn('未找到刷新按钮');
       }
     } catch (error) {
-      console.error('地图初始化过程中发生错误:', error);
-      this.showError('地图初始化失败: ' + error.message);
+      console.error('地图初始化过程中发生错误，显示静态地图:', error);
+      // 初始化失败，显示静态地图
+      if (staticMap) {
+        staticMap.style.display = 'block';
+      }
+      clearTimeout(timeoutId);
     }
   }
   
@@ -263,6 +252,17 @@ export class MapCard extends BaseCard {
    */
   refreshMap() {
     console.log('刷新地图按钮被点击');
+    
+    // 添加旋转动画
+    const refreshIcon = document.getElementById('refresh-icon');
+    if (refreshIcon) {
+      refreshIcon.classList.add('spin-animation');
+      
+      // 动画结束后移除动画类，以便下次点击时可以再次触发
+      refreshIcon.addEventListener('animationend', () => {
+        refreshIcon.classList.remove('spin-animation');
+      }, { once: true });
+    }
     
     // 显示加载状态
     this.showLoading();
