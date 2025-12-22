@@ -33,7 +33,7 @@ export class VideoCard extends BaseCard {
     
     return `
       <div class="bg-gray-200 rounded-xl w-full h-48 mb-4 overflow-hidden relative">
-        <img src="${this.video.cover}" class="w-full h-full object-cover" />
+        <img src="${this.video.cover}" class="w-full h-full object-cover" loading="lazy" />
         ${badgeHTML}
       </div>
       <div class="flex justify-between items-center">

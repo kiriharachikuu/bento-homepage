@@ -158,6 +158,49 @@ body {
   background-color: var(--gray-100);
 }
 
+/* 夜间模式下的按钮样式 */
+.night-mode .bg-gray-100 {
+  background-color: var(--gray-100);
+}
+
+.night-mode .bg-gray-200 {
+  background-color: var(--gray-200);
+}
+
+.night-mode .hover\:bg-gray-100:hover {
+  background-color: var(--gray-100);
+}
+
+.night-mode .hover\:bg-gray-200:hover {
+  background-color: var(--gray-200);
+}
+
+.night-mode .text-gray-700 {
+  color: var(--text-color);
+}
+
+.night-mode .text-gray-500 {
+  color: var(--gray-600);
+}
+
+/* 为所有按钮添加夜间模式支持 */
+.night-mode button,
+.night-mode a {
+  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+/* 确保按钮文本在夜间模式下可见 */
+.night-mode button.text-gray-700,
+.night-mode a.text-gray-700 {
+  color: var(--text-color);
+}
+
+/* 确保按钮在夜间模式下有正确的悬停效果 */
+.night-mode button.hover\:bg-gray-200:hover,
+.night-mode a.hover\:bg-gray-200:hover {
+  background-color: var(--gray-200);
+}
+
 /* 导航栏背景色 */
 .bg-nav {
   background-color: var(--nav-bg);
