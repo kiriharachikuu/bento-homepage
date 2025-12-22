@@ -63,28 +63,30 @@ function initDownloadPage() {
       </div>
       <!-- 统一的下载列表区域 -->
       <div class="download-list-container mt-6 overflow-hidden transition-all duration-500 ease-in-out max-h-0">
-        <div class="download-list bg-white rounded-lg shadow-md p-4">
-          <h4 class="download-list-title font-medium mb-3" id="list-title">下载列表</h4>
+        <div class="download-list rounded-lg shadow-md p-4" style="background-color: var(--card-bg);">
+          <h4 class="download-list-title font-medium mb-3" id="list-title" style="color: var(--text-color);">下载列表</h4>
           
           <!-- 添加搜索和筛选功能 -->
           <div class="download-filters mb-4">
             <div class="flex flex-col md:flex-row gap-3">
               <!-- 搜索框 -->
               <div class="flex-1">
-                <input type="text" id="download-search" placeholder="搜索文件名..." class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <input type="text" id="download-search" placeholder="搜索文件名..." 
+                  class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                  style="border-color: var(--border-color); background-color: var(--card-bg); color: var(--text-color);">
               </div>
               <!-- 文件类型筛选 -->
               <div class="flex items-center gap-2">
-                <label for="file-type-filter" class="text-sm text-gray-600">文件类型：</label>
-                <select id="file-type-filter" class="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <label for="file-type-filter" class="text-sm" style="color: var(--gray-600);">文件类型：</label>
+                <select id="file-type-filter" 
+                  class="px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                  style="border-color: var(--border-color); background-color: var(--card-bg); color: var(--text-color);">
                   <option value="all">所有类型</option>
-                  <option value=".zip">ZIP</option>
-                  <option value=".exe">EXE</option>
-                  <option value=".pdf">PDF</option>
-                  <option value=".mp3">MP3</option>
-                  <option value=".mp4">MP4</option>
-                  <option value=".jpg">JPG</option>
-                  <option value=".png">PNG</option>
+                  <option value="image">图片</option>
+                  <option value="document">文档</option>
+                  <option value="video">视频</option>
+                  <option value="audio">音频</option>
+                  <option value="other">其他</option>
                 </select>
               </div>
             </div>
@@ -104,24 +106,85 @@ function initDownloadPage() {
 }
 
 /**
+ * 根据文件名获取文件类型图标
+ * @param {string} fileName - 文件名
+ * @returns {string} - 图标HTML
+ */
+function getFileTypeIcon(fileName) {
+  // 移除路径前缀，只保留文件名
+  const actualFileName = fileName.split('/').pop();
+  const extension = actualFileName.toLowerCase().split('.').pop();
+  
+  // 图片类型图标
+  const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg'];
+  if (imageExtensions.includes(extension)) {
+    return '<i class="fa-regular fa-file-image mr-2" style="color: #3b82f6;"></i>';
+  }
+  
+  // 文档类型图标
+  const docExtensions = ['pdf', 'doc', 'docx', 'txt', 'md', 'ppt', 'pptx', 'xls', 'xlsx'];
+  if (docExtensions.includes(extension)) {
+    if (extension === 'pdf') {
+      return '<i class="fa-regular fa-file-pdf mr-2" style="color: #ef4444;"></i>';
+    } else if (['doc', 'docx'].includes(extension)) {
+      return '<i class="fa-regular fa-file-word mr-2" style="color: #3b82f6;"></i>';
+    } else if (['xls', 'xlsx'].includes(extension)) {
+      return '<i class="fa-regular fa-file-excel mr-2" style="color: #10b981;"></i>';
+    } else if (['ppt', 'pptx'].includes(extension)) {
+      return '<i class="fa-regular fa-file-powerpoint mr-2" style="color: #f59e0b;"></i>';
+    } else {
+      return '<i class="fa-regular fa-file-lines mr-2" style="color: #6b7280;"></i>';
+    }
+  }
+  
+  // 视频类型图标
+  const videoExtensions = ['mp4', 'avi', 'mov', 'wmv', 'flv', 'webm'];
+  if (videoExtensions.includes(extension)) {
+    return '<i class="fa-regular fa-file-video mr-2" style="color: #f59e0b;"></i>';
+  }
+  
+  // 音频类型图标
+  const audioExtensions = ['mp3', 'wav', 'ogg', 'flac', 'm4a', 'wma'];
+  if (audioExtensions.includes(extension)) {
+    return '<i class="fa-regular fa-file-audio mr-2" style="color: #8b5cf6;"></i>';
+  }
+  
+  // 压缩文件类型图标
+  const zipExtensions = ['zip', 'rar', '7z'];
+  if (zipExtensions.includes(extension)) {
+    return '<i class="fa-solid fa-file-zipper mr-2" style="color: #f59e0b;"></i>';
+  }
+  
+  // 可执行文件类型图标
+  const exeExtensions = ['exe', 'dmg', 'pkg', 'msi'];
+  if (exeExtensions.includes(extension)) {
+    return '<i class="fa-solid fa-file-code mr-2" style="color: #ef4444;"></i>';
+  }
+  
+  // 默认图标
+  return '<i class="fa-regular fa-file mr-2" style="color: #6b7280;"></i>';
+}
+
+/**
  * 生成下载列表HTML
  * @param {Array} files - 文件列表数据
  */
 function generateDownloadList(files) {
   if (!files || files.length === 0) {
-    return '<div class="text-center text-gray-500 py-4">暂无文件</div>';
+    return '<div class="text-center py-4" style="color: var(--gray-600);">暂无文件</div>';
   }
   
   return files.map(item => `
-    <div class="flex justify-between items-center p-2 rounded-md hover:bg-gray-100">
+    <div class="flex justify-between items-center p-2 rounded-md" style="color: var(--text-color);">
       <div class="flex-1">
-        <div class="font-medium">${item.name}</div>
-        <div class="text-sm text-gray-500">
+          <div class="font-medium">${getFileTypeIcon(item.name)}${item.name.replace('uploads/', '')}</div>
+        <div class="text-sm" style="color: var(--gray-600);">
           <span class="mr-4">大小：${item.size}</span>
           <span>更新时间：${item.updateTime}</span>
         </div>
       </div>
-      <a href="${item.url}" class="ml-4 px-3 py-1 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors text-sm">
+      <a href="${item.url}" class="ml-4 px-3 py-1 rounded transition-colors text-sm" 
+         style="background-color: var(--gray-200); color: var(--gray-800); hover:background-color: var(--gray-300);">
         下载
       </a>
     </div>
@@ -155,7 +218,7 @@ function addDownloadListEventListeners() {
   async function loadFiles(category) {
     try {
       // 显示加载状态
-      listContent.innerHTML = '<div class="text-center text-gray-500 py-4">加载中...</div>';
+      listContent.innerHTML = '<div class="text-center py-4" style="color: var(--gray-600);">加载中...</div>';
       
       // 从腾讯云COS获取文件列表数据
       const data = await getDownloadData();
@@ -165,7 +228,7 @@ function addDownloadListEventListeners() {
       applyFilters();
     } catch (error) {
       console.error('加载文件失败:', error);
-      listContent.innerHTML = '<div class="text-center text-red-500 py-4">加载文件失败，请稍后重试</div>';
+      listContent.innerHTML = '<div class="text-center py-4" style="color: #ef4444;">加载文件失败，请稍后重试</div>';
     }
   }
   
@@ -184,9 +247,23 @@ function addDownloadListEventListeners() {
     // 应用文件类型过滤
     const selectedType = typeFilter?.value || 'all';
     if (selectedType !== 'all') {
-      filteredFiles = filteredFiles.filter(file => 
-        file.name.toLowerCase().endsWith(selectedType)
-      );
+      // 定义文件类型分类
+      const fileTypeMap = {
+        image: ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.svg'],
+        document: ['.pdf', '.doc', '.docx', '.txt', '.md', '.ppt', '.pptx', '.xls', '.xlsx'],
+        video: ['.mp4', '.avi', '.mov', '.wmv', '.flv', '.webm'],
+        audio: ['.mp3', '.wav', '.ogg', '.flac', '.m4a', '.wma'],
+        other: ['.zip', '.rar', '.7z', '.exe', '.dmg', '.pkg', '.msi']
+      };
+      
+      // 获取当前分类对应的扩展名列表
+      const extensions = fileTypeMap[selectedType] || [];
+      
+      // 过滤文件
+      filteredFiles = filteredFiles.filter(file => {
+        const fileName = file.name.toLowerCase();
+        return extensions.some(ext => fileName.endsWith(ext));
+      });
     }
     
     // 重新渲染列表
