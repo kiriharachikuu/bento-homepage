@@ -162,17 +162,9 @@
     </div>
     <div id="toast" class="toast"></div>
 
+    <script src="https://chikuu-1252656027.cos.ap-nanjing.myqcloud.com/config.js"></script>
     <script>
         lucide.createIcons();
-
-        // 请替换为您自己的腾讯云 COS 配置
-        const COS_CONFIG = {
-            Bucket: 'chikuu-1252656027', // 存储桶名称
-            Region: 'ap-nanjing',               // 存储桶所在地域
-            SecretId: 'AKIDTIyQehaGj05za6Tpytb6PVO4byBByay8', // 临时密钥 SecretId
-            SecretKey: '1rUu64rQnxtU4ScbN1Sr8EAD3iAPXS9c',    // 临时密钥 SecretKey
-            SessionToken: '',                   // 临时密钥 SessionToken，非必须
-        };
 
         const cos = new COS({
             SecretId: COS_CONFIG.SecretId,
@@ -471,10 +463,10 @@
         function shareFile(id) {
             const file = files.find(f => f.id === id);
             if (file) {
-                // Simulate share link generation
-                const shareLink = file.url || `https://linksync.example.com/share/${id}`;
+                // 使用腾讯云 COS 直链
+                const shareLink = file.url;
                 navigator.clipboard.writeText(shareLink).then(() => {
-                    showToast(`分享链接已复制到剪贴板：${shareLink}`);
+                    showToast(`腾讯云直链已复制到剪贴板：${shareLink}`);
                 }).catch(err => {
                     showToast('无法复制链接，请手动复制。');
                     console.error('Could not copy text: ', err);
