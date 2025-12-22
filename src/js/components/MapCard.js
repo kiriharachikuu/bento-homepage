@@ -112,7 +112,7 @@ export class MapCard extends BaseCard {
   /**
    * 初始化地图
    */
-  initMap() {
+  async initMap() {
     console.log('MapCard.initMap() 被调用');
     
     // 显示加载状态
@@ -137,23 +137,29 @@ export class MapCard extends BaseCard {
       console.log('地图容器高度为0，已设置为256px');
     }
 
-    // 检查AMap是否已加载
-    if (!window.AMap) {
-      console.error('地图API未加载，尝试重新加载');
-      this.showError('地图API未加载，正在尝试重新加载...');
-      
-      // 尝试重新加载地图API
-      this.loadAMapAPI().then(() => {
-        this.initMap();
-      }).catch((error) => {
-        console.error('重新加载地图API失败:', error);
-        this.showError('地图API加载失败，请检查网络连接');
-      });
-      
+    // 确保地图API已加载
+    try {
+      if (!window.AMap) {
+        console.error('地图API未加载，尝试加载');
+        await this.loadAMapAPI();
+        console.log('地图API加载成功');
+      } else {
+        console.log('地图API已加载');
+      }
+    } catch (error) {
+      console.error('加载地图API失败:', error);
+      this.showError('地图API加载失败，请检查网络连接');
       return;
     }
 
-    console.log('AMap API已加载，开始初始化地图');
+    console.log('开始初始化地图实例');
+    
+    // 确保AMap对象可用
+    if (!window.AMap) {
+      console.error('地图API加载失败，AMap对象未定义');
+      this.showError('地图API加载失败，请刷新页面重试');
+      return;
+    }
 
     try {
       // 地图配置，添加隐藏logo选项

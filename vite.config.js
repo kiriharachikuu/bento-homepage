@@ -34,8 +34,9 @@ export default defineConfig({
     outDir: 'dist',
     assetsDir: 'assets',
     minify: 'esbuild',
+    // 不移除console.log，以便在生产环境中调试
     esbuild: {
-      drop: ['console', 'debugger']
+      drop: ['debugger']
     },
     rollupOptions: {
       output: {
