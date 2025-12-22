@@ -1,5 +1,5 @@
 import siteConfig from './config.js';
-import { downloadData } from './downloadData.js';
+import { getDownloadData } from './downloadData.js';
 import { themeConfig } from './themeConfig.js';
 
 /**
@@ -65,6 +65,31 @@ function initDownloadPage() {
       <div class="download-list-container mt-6 overflow-hidden transition-all duration-500 ease-in-out max-h-0">
         <div class="download-list bg-white rounded-lg shadow-md p-4">
           <h4 class="download-list-title font-medium mb-3" id="list-title">下载列表</h4>
+          
+          <!-- 添加搜索和筛选功能 -->
+          <div class="download-filters mb-4">
+            <div class="flex flex-col md:flex-row gap-3">
+              <!-- 搜索框 -->
+              <div class="flex-1">
+                <input type="text" id="download-search" placeholder="搜索文件名..." class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+              </div>
+              <!-- 文件类型筛选 -->
+              <div class="flex items-center gap-2">
+                <label for="file-type-filter" class="text-sm text-gray-600">文件类型：</label>
+                <select id="file-type-filter" class="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                  <option value="all">所有类型</option>
+                  <option value=".zip">ZIP</option>
+                  <option value=".exe">EXE</option>
+                  <option value=".pdf">PDF</option>
+                  <option value=".mp3">MP3</option>
+                  <option value=".mp4">MP4</option>
+                  <option value=".jpg">JPG</option>
+                  <option value=".png">PNG</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          
           <div class="space-y-3" id="download-list-content"></div>
         </div>
       </div>
@@ -80,15 +105,14 @@ function initDownloadPage() {
 
 /**
  * 生成下载列表HTML
- * @param {string} category - 下载分类
+ * @param {Array} files - 文件列表数据
  */
-function generateDownloadList(category) {
-  const listData = downloadData[category];
-  if (!listData) {
-    return '';
+function generateDownloadList(files) {
+  if (!files || files.length === 0) {
+    return '<div class="text-center text-gray-500 py-4">暂无文件</div>';
   }
   
-  return listData.map(item => `
+  return files.map(item => `
     <div class="flex justify-between items-center p-2 rounded-md hover:bg-gray-100">
       <div class="flex-1">
         <div class="font-medium">${item.name}</div>
@@ -115,12 +139,63 @@ function addDownloadListEventListeners() {
   const listTitle = document.getElementById('list-title');
   const listContent = document.getElementById('download-list-content');
   
+  // 获取搜索和筛选元素
+  const searchInput = document.getElementById('download-search');
+  const typeFilter = document.getElementById('file-type-filter');
+  
   if (!listContainer || !listTitle || !listContent) {
     return;
   }
   
-  // 记录当前显示的分类
+  // 记录当前显示的分类和原始文件数据
   let currentCategory = null;
+  let currentFiles = [];
+  
+  // 加载文件数据的函数
+  async function loadFiles(category) {
+    try {
+      // 显示加载状态
+      listContent.innerHTML = '<div class="text-center text-gray-500 py-4">加载中...</div>';
+      
+      // 从腾讯云COS获取文件列表数据
+      const data = await getDownloadData();
+      currentFiles = data[category] || [];
+      
+      // 应用搜索和筛选条件
+      applyFilters();
+    } catch (error) {
+      console.error('加载文件失败:', error);
+      listContent.innerHTML = '<div class="text-center text-red-500 py-4">加载文件失败，请稍后重试</div>';
+    }
+  }
+  
+  // 应用搜索和筛选条件
+  function applyFilters() {
+    let filteredFiles = [...currentFiles];
+    
+    // 应用搜索过滤
+    const searchTerm = searchInput?.value.toLowerCase() || '';
+    if (searchTerm) {
+      filteredFiles = filteredFiles.filter(file => 
+        file.name.toLowerCase().includes(searchTerm)
+      );
+    }
+    
+    // 应用文件类型过滤
+    const selectedType = typeFilter?.value || 'all';
+    if (selectedType !== 'all') {
+      filteredFiles = filteredFiles.filter(file => 
+        file.name.toLowerCase().endsWith(selectedType)
+      );
+    }
+    
+    // 重新渲染列表
+    listContent.innerHTML = generateDownloadList(filteredFiles);
+  }
+  
+  // 添加搜索和筛选事件监听
+  searchInput?.addEventListener('input', applyFilters);
+  typeFilter?.addEventListener('change', applyFilters);
   
   downloadButtons.forEach(button => {
     button.addEventListener('click', async () => {
@@ -130,6 +205,11 @@ function addDownloadListEventListeners() {
         // 如果点击的是当前显示的分类，收起列表
         await closeDownloadList(listContainer);
         currentCategory = null;
+        currentFiles = [];
+        
+        // 清空搜索和筛选
+        if (searchInput) searchInput.value = '';
+        if (typeFilter) typeFilter.value = 'all';
       } else {
         // 如果点击的是不同分类，先收起当前列表，再展开新列表
         if (currentCategory !== null) {
@@ -146,8 +226,8 @@ function addDownloadListEventListeners() {
         };
         listTitle.textContent = categoryNames[category] || '下载列表';
         
-        // 生成并注入下载列表内容
-        listContent.innerHTML = generateDownloadList(category);
+        // 加载文件数据
+        await loadFiles(category);
         
         // 展开新列表
         openDownloadList(listContainer);
