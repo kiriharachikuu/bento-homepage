@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LinkSync - 文件管理系统</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/lucide@0.544.0/dist/umd/lucide.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/cos-js-sdk-v5@1.4.5/dist/cos-js-sdk-v5.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #6366F1;
+            --secondary-color: #34D399;
+            --background-color: #111827;
+            --card-background: #1F2937;
+            --text-color: #F9FAFB;
+            --muted-text-color: #9CA3AF;
+        }
+        body {
+            background-color: var(--background-color);
+            color: var(--text-color);
+            font-family: 'Inter', sans-serif;
+        }
+        .card {
+            background-color: var(--card-background);
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            transition: box-shadow 0.3s ease, transform 0.3s ease;
+        }
+        .card:hover {
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+            transform: translateY(-2px);
+        }
+        .btn-primary {
+            background-color: var(--primary-color);
+            color: white;
+            transition: background-color 0.3s ease;
+        }
+        .btn-primary:hover {
+            background-color: #4338CA;
+        }
+        .dark .btn-primary:hover {
+            background-color: #4F46E5;
+        }
+        .btn-secondary {
+            background-color: var(--secondary-color);
+            color: white;
+            transition: background-color 0.3s ease;
+        }
+        .btn-secondary:hover {
+            background-color: #059669;
+        }
+        .dark .btn-secondary:hover {
+            background-color: #10B981;
+        }
+        .btn-outline {
+            border: 1px solid var(--muted-text-color);
+            color: var(--text-color);
+            transition: all 0.3s ease;
+        }
+        .btn-outline:hover {
+            background-color: var(--muted-text-color);
+            color: var(--card-background);
+        }
+        .toast {
+            position: fixed;
+            bottom: 2rem;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            background-color: var(--secondary-color);
+            color: white;
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+            opacity: 0;
+            transition: opacity 0.5s ease;
+            z-index: 9999;
+        }
+        .toast.show {
+            opacity: 1;
+        }
+        .tab-content {
+            position: relative;
+            overflow: hidden;
+            height: 500px;
+        }
+        .view {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+    </style>
+</head>
+<body class="antialiased dark">
+    <div id="app" class="min-h-screen flex flex-col">
+        <nav class="navbar w-full p-4 flex justify-between items-center">
+            <div class="flex items-center space-x-2">
+                <i data-lucide="link" class="text-primary-color"></i>
+                <h1 class="text-2xl font-bold">LinkSync</h1>
+            </div>
+        </nav>
+
+        <main class="flex-grow m-4">
+            <div class="card p-6">
+                <div class="flex border-b border-gray-200 dark:border-gray-700">
+                    <button id="upload-tab" class="tab-btn px-4 py-2 border-b-2 border-primary-color text-primary-color font-semibold">上传文件</button>
+                    <button id="files-tab" class="tab-btn px-4 py-2 border-b-2 border-transparent hover:text-primary-color">文件列表</button>
+                </div>
+
+                <div class="tab-content">
+                    <div id="upload-view" class="view mt-6">
+                        <div class="mb-6">
+                            <label for="upload-source" class="block text-sm font-medium text-muted-text-color mb-2">上传源</label>
+                            <select id="upload-source" class="w-full p-2 border rounded-md bg-gray-50 dark:bg-gray-600 border-gray-300 dark:border-gray-500" disabled>
+                                <option value="local">腾讯云 COS</option>
+                            </select>
+                        </div>
+                        <div id="upload-container" class="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-8 text-center">
+                            <i data-lucide="cloud" class="mx-auto h-12 w-12 text-primary-color"></i>
+                            <p class="mt-2 text-sm text-muted-text-color">拖放文件到此处，或</p>
+                            <button id="file-input-btn" class="mt-4 btn-primary px-6 py-2 rounded-md">上传到腾讯云 COS</button>
+                            <input type="file" id="file-input" class="hidden" multiple>
+                        </div>
+                    </div>
+
+                    <div id="files-view" class="view mt-6 hidden">
+                        <div class="flex justify-between items-center mb-4">
+                            <div class="relative">
+                                <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 text-muted-text-color"></i>
+                                <input type="text" id="file-search" class="pl-10 p-2 border rounded-md bg-gray-50 dark:bg-gray-600 border-gray-300 dark:border-gray-500" placeholder="搜索文件...">
+                            </div>
+                            <select id="file-filter" class="p-2 border rounded-md bg-gray-50 dark:bg-gray-600 border-gray-300 dark:border-gray-500">
+                                <option value="all">所有文件</option>
+                                <option value="image">图片</option>
+                                <option value="document">文档</option>
+                                <option value="video">视频</option>
+                                <option value="audio">音频</option>
+                            </select>
+                        </div>
+                        <div class="overflow-x-auto transform translateZ(0)">
+                            <table id="files-table" class="w-full text-left">
+                                <thead>
+                                    <tr class="border-b border-gray-200 dark:border-gray-700">
+                                        <th class="p-3">文件名</th>
+                                        <th class="p-3">大小</th>
+                                        <th class="p-3">上传时间</th>
+                                        <th class="p-3">操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="files-list">
+                                    <!-- 文件列表将通过JS动态生成 -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    <div id="toast" class="toast"></div>
+
+    <script>
+        lucide.createIcons();
+
+        // 请替换为您自己的腾讯云 COS 配置
+        const COS_CONFIG = {
+            Bucket: 'chikuu-1252656027', // 存储桶名称
+            Region: 'ap-nanjing',               // 存储桶所在地域
+            SecretId: 'AKIDTIyQehaGj05za6Tpytb6PVO4byBByay8', // 临时密钥 SecretId
+            SecretKey: '1rUu64rQnxtU4ScbN1Sr8EAD3iAPXS9c',    // 临时密钥 SecretKey
+            SessionToken: '',                   // 临时密钥 SessionToken，非必须
+        };
+
+        const cos = new COS({
+            SecretId: COS_CONFIG.SecretId,
+            SecretKey: COS_CONFIG.SecretKey,
+            SessionToken: COS_CONFIG.SessionToken,
+        });
+
+        const uploadTab = document.getElementById('upload-tab');
+        const filesTab = document.getElementById('files-tab');
+        const uploadView = document.getElementById('upload-view');
+        const filesView = document.getElementById('files-view');
+        const uploadSource = document.getElementById('upload-source');
+        const uploadContainer = document.getElementById('upload-container');
+        const fileInputBtn = document.getElementById('file-input-btn');
+        const fileInput = document.getElementById('file-input');
+        const fileSearch = document.getElementById('file-search');
+        const fileFilter = document.getElementById('file-filter');
+        const filesList = document.getElementById('files-list');
+        const toast = document.getElementById('toast');
+
+        // Tab switching with GSAP animation
+        uploadTab.addEventListener('click', () => {
+            if (uploadView.classList.contains('hidden')) {
+                uploadTab.classList.add('border-primary-color', 'text-primary-color', 'font-semibold');
+                uploadTab.classList.remove('border-transparent');
+                filesTab.classList.remove('border-primary-color', 'text-primary-color', 'font-semibold');
+                filesTab.classList.add('border-transparent');
+
+                gsap.timeline()
+                    .to(filesView, {
+                        x: '-100%',
+                        opacity: 0,
+                        duration: 0.5,
+                        ease: "power2.inOut",
+                        onComplete: () => {
+                            filesView.classList.add('hidden');
+                            uploadView.classList.remove('hidden');
+                            gsap.fromTo(uploadView,
+                                { x: '100%', opacity: 0 },
+                                { x: '0%', opacity: 1, duration: 0.5, ease: "power2.inOut" }
+                            );
+                        }
+                    });
+            }
+        });
+
+        filesTab.addEventListener('click', () => {
+            filesTab.classList.add('border-primary-color', 'text-primary-color', 'font-semibold');
+            filesTab.classList.remove('border-transparent');
+            uploadTab.classList.remove('border-primary-color', 'text-primary-color', 'font-semibold');
+            uploadTab.classList.add('border-transparent');
+
+            if (filesView.classList.contains('hidden')) {
+                gsap.timeline()
+                    .to(uploadView, {
+                        x: '100%',
+                        opacity: 0,
+                        duration: 0.5,
+                        ease: "power2.inOut",
+                        onComplete: () => {
+                            uploadView.classList.add('hidden');
+                            filesView.classList.remove('hidden');
+                            fetchFilesFromCOS(); // 从 COS 获取文件列表
+                            gsap.fromTo(filesView,
+                                { x: '-100%', opacity: 0 },
+                                { x: '0%', opacity: 1, duration: 0.5, ease: "power2.inOut" }
+                            );
+                        }
+                    });
+            } else {
+                // If already visible, still refresh the file list
+                fetchFilesFromCOS();
+            }
+        });
+
+        // File input handling
+        fileInputBtn.addEventListener('click', () => fileInput.click());
+        fileInput.addEventListener('change', handleFileSelect);
+
+        function handleFileSelect(e) {
+            const files = Array.from(e.target.files);
+            const uploadContainer = document.getElementById('upload-container');
+            const originalContent = uploadContainer.innerHTML;
+
+            uploadContainer.innerHTML = `
+                <div class="text-center">
+                    <i data-lucide="loader-2" class="mx-auto h-12 w-12 text-primary-color animate-spin"></i>
+                    <p id="upload-status" class="mt-2 text-sm text-muted-text-color">正在上传文件，请稍候...</p>
+                    <div class="mt-4 w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
+                        <div id="upload-progress" class="bg-primary-color h-2.5 rounded-full" style="width: 0%"></div>
+                    </div>
+                </div>
+            `;
+            lucide.createIcons();
+
+            const uploadPromises = files.map(file => {
+                return new Promise((resolve, reject) => {
+                    const key = `uploads/${Date.now()}-${file.name}`;
+                    cos.putObject({
+                        Bucket: COS_CONFIG.Bucket,
+                        Region: COS_CONFIG.Region,
+                        Key: key,
+                        StorageClass: 'STANDARD',
+                        Body: file,
+                        onProgress: function(progressData) {
+                            const percent = Math.round((progressData.loaded / progressData.total) * 100);
+                            document.getElementById('upload-progress').style.width = `${percent}%`;
+                            document.getElementById('upload-status').textContent = `正在上传 ${file.name}... ${percent}%`;
+                        }
+                    }, function(err, data) {
+                        if (err) {
+                            console.error(err);
+                            reject(err);
+                        } else {
+                            const newFile = {
+                                id: Date.now() + Math.random(),
+                                name: file.name,
+                                size: formatFileSize(file.size),
+                                type: file.type,
+                                uploadedAt: new Date().toLocaleString(),
+                                cosKey: key,
+                                url: `https://${COS_CONFIG.Bucket}.cos.${COS_CONFIG.Region}.myqcloud.com/${key}`
+                            };
+                            resolve(newFile);
+                        }
+                    });
+                });
+            });
+
+            Promise.allSettled(uploadPromises).then(results => {
+                uploadContainer.innerHTML = originalContent;
+                lucide.createIcons();
+                document.getElementById('file-input-btn').addEventListener('click', () => {
+                    document.getElementById('file-input').click();
+                });
+                document.getElementById('file-input').addEventListener('change', handleFileSelect);
+
+                const successfulUploads = results.filter(r => r.status === 'fulfilled').map(r => r.value);
+                successfulUploads.forEach(newFile => {
+                    addFile(newFile);
+                    showToast(`文件 "${newFile.name}" 上传成功！`);
+                });
+
+                if (successfulUploads.length === 0) {
+                    showToast('文件上传失败，请重试。');
+                }
+            });
+
+            e.target.value = ''; // Reset input
+        }
+
+        // File management
+        let files = [
+            { id: 1, name: 'document.pdf', size: '2.5 MB', type: 'application/pdf', uploadedAt: '2023-10-26 10:30' },
+            { id: 2, name: 'image.jpg', size: '1.2 MB', type: 'image/jpeg', uploadedAt: '2023-10-25 14:45' },
+            { id: 3, name: 'video.mp4', size: '150 MB', type: 'video/mp4', uploadedAt: '2023-10-24 09:15' },
+        ];
+
+        function fetchFilesFromCOS() {
+            showToast('正在从腾讯云 COS 加载文件列表...');
+            cos.getBucket({
+                Bucket: COS_CONFIG.Bucket,
+                Region: COS_CONFIG.Region,
+                Prefix: 'uploads/', // 只列出 uploads/ 目录下的文件
+            }, function(err, data) {
+                if (err) {
+                    console.error('获取文件列表失败:', err);
+                    showToast('获取文件列表失败，显示本地缓存。');
+                    // 如果获取失败，使用现有的 files 数组
+                    renderFiles();
+                } else {
+                    // 清空并重新填充 files 数组
+                    files = [];
+                    data.Contents.forEach(function(item) {
+                        const key = item.Key;
+                        const fileName = key.split('/').pop();
+                        const fileSize = formatFileSize(item.Size);
+                        const lastModified = new Date(item.LastModified).toLocaleString();
+                        
+                        // 推测文件类型
+                        const extension = fileName.split('.').pop().toLowerCase();
+                        let fileType = 'application/octet-stream';
+                        if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(extension)) {
+                            fileType = `image/${extension === 'jpg' ? 'jpeg' : extension}`;
+                        } else if (['pdf'].includes(extension)) {
+                            fileType = 'application/pdf';
+                        } else if (['mp4', 'avi', 'mov'].includes(extension)) {
+                            fileType = 'video/mp4';
+                        } else if (['mp3', 'wav'].includes(extension)) {
+                            fileType = 'audio/mpeg';
+                        }
+
+                        files.push({
+                            id: Date.now() + Math.random(),
+                            name: fileName,
+                            size: fileSize,
+                            type: fileType,
+                            uploadedAt: lastModified,
+                            cosKey: key,
+                            url: `https://${COS_CONFIG.Bucket}.cos.${COS_CONFIG.Region}.myqcloud.com/${key}`
+                        });
+                    });
+                    renderFiles();
+                    showToast(`成功加载 ${files.length} 个文件。`);
+                }
+            });
+        }
+
+        function renderFiles() {
+            const searchTerm = fileSearch.value.toLowerCase();
+            const filter = fileFilter.value;
+
+            const filteredFiles = files.filter(file => {
+                const matchesSearch = file.name.toLowerCase().includes(searchTerm);
+                const matchesFilter = filter === 'all' || getFileTypeCategory(file.type) === filter;
+                return matchesSearch && matchesFilter;
+            });
+
+            filesList.innerHTML = filteredFiles.map(file => `
+                <tr data-id="${file.id}" class="border-b border-gray-700 hover:bg-gray-600/50">
+                    <td class="p-3 flex items-center">
+                        <i data-lucide="${getFileIcon(file.type)}" class="w-5 h-5 mr-2 text-muted-text-color"></i>
+                        ${file.name}
+                    </td>
+                    <td class="p-3">${file.size}</td>
+                    <td class="p-3">${file.uploadedAt}</td>
+                    <td class="p-3 flex space-x-2">
+                        <button onclick="shareFile(${file.id})" class="btn-outline p-1 rounded-md"><i data-lucide="share-2" class="w-4 h-4"></i></button>
+                        <button onclick="deleteFile(${file.id})" class="btn-outline p-1 rounded-md"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                    </td>
+                </tr>
+            `).join('');
+            lucide.createIcons();
+            
+            // Animate table rows with a simpler, more performant animation
+            gsap.fromTo('#files-list tr', 
+                { opacity: 0, y: 10 },
+                { opacity: 1, y: 0, duration: 0.3, stagger: 0.05, ease: "power1.out", force3D: true }
+            );
+        }
+
+        function addFile(file) {
+            files.unshift(file);
+            if (!filesView.classList.contains('hidden')) {
+                renderFiles();
+            }
+        }
+
+        function deleteFile(id) {
+            const file = files.find(f => f.id === id);
+            if (!file) return;
+
+            if (confirm('确定要删除此文件吗？')) {
+                showToast(`正在删除文件 "${file.name}"...`);
+
+                // Delete from COS if cosKey exists
+                if (file.cosKey) {
+                    cos.deleteObject({
+                        Bucket: COS_CONFIG.Bucket,
+                        Region: COS_CONFIG.Region,
+                        Key: file.cosKey
+                    }, function(err, data) {
+                        if (err) {
+                            console.error('COS Delete Error:', err);
+                            // Continue to delete from UI even if COS delete fails
+                        } 
+                        deleteFileFromUI(id);
+                    });
+                } else {
+                    // If no cosKey, just delete from UI
+                    deleteFileFromUI(id);
+                }
+            }
+        }
+
+        function deleteFileFromUI(id) {
+            const row = document.querySelector(`#files-list tr[data-id="${id}"]`);
+            if (row) {
+                gsap.to(row, {
+                    opacity: 0,
+                    x: 100,
+                    duration: 0.5,
+                    onComplete: () => {
+                        files = files.filter(f => f.id !== id);
+                        renderFiles();
+                        showToast('文件已删除。');
+                    }
+                });
+            } else {
+                files = files.filter(f => f.id !== id);
+                renderFiles();
+                showToast('文件已删除。');
+            }
+        }
+
+        function shareFile(id) {
+            const file = files.find(f => f.id === id);
+            if (file) {
+                // Simulate share link generation
+                const shareLink = file.url || `https://linksync.example.com/share/${id}`;
+                navigator.clipboard.writeText(shareLink).then(() => {
+                    showToast(`分享链接已复制到剪贴板：${shareLink}`);
+                }).catch(err => {
+                    showToast('无法复制链接，请手动复制。');
+                    console.error('Could not copy text: ', err);
+                });
+            }
+        }
+
+        // Event listeners for search and filter with animation
+        fileSearch.addEventListener('input', () => {
+            gsap.killTweensOf('#files-list tr');
+            gsap.to('#files-list', {
+                opacity: 0.7,
+                duration: 0.15,
+                onComplete: () => {
+                    renderFiles();
+                }
+            });
+        });
+        
+        fileFilter.addEventListener('change', () => {
+            gsap.killTweensOf('#files-list tr');
+            gsap.to('#files-list', {
+                opacity: 0.7,
+                duration: 0.15,
+                onComplete: () => {
+                    renderFiles();
+                }
+            });
+        });
+
+        // Helper functions
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        function getFileTypeCategory(mimeType) {
+            if (mimeType.startsWith('image/')) return 'image';
+            if (mimeType.startsWith('text/') || mimeType.includes('document')) return 'document';
+            if (mimeType.startsWith('video/')) return 'video';
+            if (mimeType.startsWith('audio/')) return 'audio';
+            return 'other';
+        }
+
+        function getFileIcon(mimeType) {
+            if (mimeType.startsWith('image/')) return 'image';
+            if (mimeType.includes('pdf')) return 'file-text';
+            if (mimeType.includes('word') || mimeType.includes('document')) return 'file-text';
+            if (mimeType.includes('excel') || mimeType.includes('sheet')) return 'file-spreadsheet';
+            if (mimeType.startsWith('video/')) return 'video';
+            if (mimeType.startsWith('audio/')) return 'music';
+            return 'file';
+        }
+        
+        function showToast(message) {
+            toast.textContent = message;
+            gsap.fromTo(toast,
+                { y: 50, opacity: 0 },
+                { y: 0, opacity: 1, duration: 0.5, ease: "back.out(1.2)" }
+            );
+            setTimeout(() => {
+                gsap.to(toast, {
+                    y: 50,
+                    opacity: 0,
+                    duration: 0.5,
+                    ease: "power2.in"
+                });
+            }, 3000);
+        }
+
+        // Initial setup
+        gsap.from('nav', { y: -50, opacity: 0, duration: 1, ease: "back.out(1.7)" });
+        gsap.from('.card', { scale: 0.9, opacity: 0, duration: 0.8, delay: 0.2, ease: "power2.out" });
+        gsap.from('.tab-btn', { x: -20, opacity: 0, duration: 0.5, stagger: 0.1, delay: 0.5, ease: "power2.out" });
+        gsap.fromTo(uploadView,
+            { y: 20, opacity: 0 },
+            { y: 0, opacity: 1, duration: 0.8, delay: 0.8, ease: "power2.out" }
+        );
+
+        // Initial render
+        renderFiles();
+    </script>
+</body>
+</html>
