@@ -239,9 +239,11 @@ function addDownloadListEventListeners() {
     // 应用搜索过滤
     const searchTerm = searchInput?.value.toLowerCase() || '';
     if (searchTerm) {
-      filteredFiles = filteredFiles.filter(file => 
-        file.name.toLowerCase().includes(searchTerm)
-      );
+      filteredFiles = filteredFiles.filter(file => {
+        // 只在实际文件名部分搜索（移除路径前缀）
+        const actualFileName = file.name.split('/').pop();
+        return actualFileName.toLowerCase().includes(searchTerm);
+      });
     }
     
     // 应用文件类型过滤
