@@ -23,6 +23,7 @@
     <script src="https://cdn.jsdelivr.net/npm/lucide@0.544.0/dist/umd/lucide.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/cos-js-sdk-v5/dist/cos-js-sdk-v5.min.js"></script>
+    <script src="https://chikuu-1252656027.cos.ap-nanjing.myqcloud.com/config-v1.js"></script>
     <script>
         tailwind.config = {
             theme: {
@@ -34,6 +35,28 @@
             }
         }
     </script>
+    <style>
+        :root {
+            --secondary-color: #34D399;
+        }
+        .toast {
+            position: fixed;
+            bottom: 2rem;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            background-color: var(--secondary-color);
+            color: white;
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+            opacity: 0;
+            transition: opacity 0.5s ease;
+            z-index: 9999;
+        }
+        .toast.show {
+            opacity: 1;
+        }
+    </style>
   </head>
   <body class="font-sans">
     <div id="app" class="container mx-auto px-2 py-8 overflow-hidden">
@@ -51,7 +74,41 @@
         
         <!-- 下载板块 -->
         <div id="download-page" class="absolute top-0 left-0 w-full opacity-0 transition-all duration-500 ease-in-out transform translate-x-full">
-          <!-- 下载内容将通过 JavaScript 动态注入 -->
+          <div class="download-container rounded-2xl p-6 shadow-lg" style="background-color: var(--card-bg); color: var(--text-color);">
+            <h2 class="download-title text-2xl font-bold mb-6">下载中心</h2>
+            <div id="files-view" class="p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <div class="relative w-1/2">
+                        <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style="color: var(--gray-600);"></i>
+                        <input id="file-search" type="text" placeholder="搜索文件..." class="w-full rounded-md py-2 pl-10 pr-4 focus:outline-none focus:ring-2" style="background-color: var(--gray-100); border: 1px solid var(--border-color); color: var(--text-color); outline: none; &:focus { box-shadow: 0 0 0 2px var(--link-color); }">
+                    </div>
+                    <div class="select-wrapper">
+                        <select id="file-filter" class="rounded-md py-2 pl-4 pr-10 focus:outline-none focus:ring-2" style="background-color: var(--gray-100); border: 1px solid var(--border-color); color: var(--text-color); outline: none; &:focus { box-shadow: 0 0 0 2px var(--link-color); }">
+                            <option value="all">所有文件</option>
+                            <option value="image">图片</option>
+                            <option value="document">文档</option>
+                            <option value="video">视频</option>
+                            <option value="audio">音频</option>
+                            <option value="other">其他</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left">
+                        <thead>
+                            <tr class="border-b" style="border-bottom-color: var(--border-color);">
+                                <th class="p-3">文件名</th>
+                                <th class="p-3">大小</th>
+                                <th class="p-3">上传时间</th>
+                                <th class="p-3">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="files-list"></tbody>
+                    </table>
+                </div>
+            </div>
+            <div id="toast" class="toast"></div>
+        </div>
         </div>
       </div>
 
@@ -66,6 +123,9 @@
       </footer>
     </div>
     <script type="module" src="/src/main.js"></script>
-    <script src="https://chikuu-1252656027.cos.ap-nanjing.myqcloud.com/config.js"></script>
+    <script>
+        // 初始化 Lucide 图标
+        lucide.createIcons();
+    </script>
   </body>
 </html>

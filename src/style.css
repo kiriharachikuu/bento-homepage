@@ -252,3 +252,80 @@ body {
 * {
   transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
 }
+
+/* 为select元素添加自定义下拉动画 */
+select {
+  /* 基础样式保持不变 */
+  appearance: none;
+  padding-right: 2.5rem;
+  transition: all 0.3s ease;
+}
+
+/* 自定义下拉列表动画效果 */
+select option {
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* 为select添加hover和focus效果 */
+select:hover {
+  border-color: var(--link-color);
+}
+
+/* 添加一个自定义的下拉列表容器，用于实现动画 */
+.select-wrapper {
+  position: relative;
+  display: inline-block;
+  overflow: hidden;
+}
+
+.select-wrapper::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  right: 1rem;
+  transform: translateY(-50%);
+  width: 0;
+  height: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 5px solid var(--text-color);
+  transition: transform 0.3s ease;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.select-wrapper select {
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+/* 为下拉列表项添加动画 */
+.select-wrapper select option {
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 箭头旋转动画 */
+.select-wrapper select:focus ~ ::after {
+  transform: translateY(-50%) rotate(180deg);
+}
+
+/* 展开收起动画效果 */
+.select-wrapper select:active {
+  transform: scale(0.98);
+}
+
+/* 添加下拉列表出现的动画效果 */
+.select-wrapper select:focus {
+  box-shadow: 0 10px 25px -5px var(--shadow-color), 0 4px 6px -4px var(--shadow-color);
+  transform: translateY(-2px);
+}

@@ -565,16 +565,27 @@ class GridManager {
     const cards = document.querySelectorAll('.draggable-card');
     let currentRow = 0;
     let currentCol = 0;
-    let rowHeight = 0;
 
     cards.forEach(card => {
       const size = this.getCardSize(card);
       
-      // 检查当前位置是否可用
-      if (!this.isPositionAvailable(currentCol, currentRow, size.width, size.height)) {
-        // 当前位置不可用，移动到下一行
-        currentRow++;
-        currentCol = 0;
+      // 检查当前位置是否可用，如果不可用或当前行剩余空间不够，寻找合适位置
+      if (!this.isPositionAvailable(currentCol, currentRow, size.width, size.height) || 
+          currentCol + size.width > this.columns) {
+        // 寻找可用的空位
+        const emptySpace = this.findEmptySpace(size.width, size.height);
+        if (emptySpace) {
+          currentCol = emptySpace.col;
+          currentRow = emptySpace.row;
+        } else {
+          // 如果没有找到空位，移动到下一行开始位置
+          currentRow++;
+          currentCol = 0;
+          // 确保新位置可用
+          while (!this.isPositionAvailable(currentCol, currentRow, size.width, size.height)) {
+            currentRow++;
+          }
+        }
       }
 
       // 占用位置

@@ -39,7 +39,7 @@ export const themeConfig = {
     linkColor: '#60a5fa',
     linkHover: '#3b82f6',
     gray100: '#1e293b',
-    gray200: '#334155',
+    gray200: '#3e3e3e',
     gray600: '#cbd5e1',
     gray700: '#e2e8f0',
     gray800: '#f8fafc',
