@@ -1,60 +1,15 @@
-// 下载列表数据
+// 下载列表数据 - 基于linksync重写
+
 // 配置常量
 const CONFIG = {
-  COS_SDK_URL: 'https://cdn.jsdelivr.net/npm/cos-js-sdk-v5@1.4.5/dist/cos-js-sdk-v5.min.js',
   COS_CONFIG_URL: 'https://chikuu-1252656027.cos.ap-nanjing.myqcloud.com/config.js',
-  COS_BUCKET: 'chikuu-1252656027',
-  COS_REGION: 'ap-nanjing',
   COS_PREFIX: 'uploads/',
-  LOAD_TIMEOUT: 5000, // 加载超时时间(ms)
   CACHE_EXPIRY: 5 * 60 * 1000 // 缓存有效期(5分钟)
 };
-
-// 避免重复加载的Promise缓存
-let cosSdkPromise = null;
-let cosConfigPromise = null;
 
 // 生成唯一ID
 function generateUniqueId() {
   return `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-}
-
-// 获取文件类型
-function getFileType(extension) {
-  const typeMap = {
-    'jpg': 'image/jpeg',
-    'jpeg': 'image/jpeg',
-    'png': 'image/png',
-    'gif': 'image/gif',
-    'webp': 'image/webp',
-    'bmp': 'image/bmp',
-    'svg': 'image/svg+xml',
-    'pdf': 'application/pdf',
-    'doc': 'application/msword',
-    'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    'txt': 'text/plain',
-    'md': 'text/plain',
-    'ppt': 'application/vnd.ms-powerpoint',
-    'pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-    'xls': 'application/vnd.ms-excel',
-    'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    'mp4': 'video/mp4',
-    'avi': 'video/x-msvideo',
-    'mov': 'video/quicktime',
-    'wmv': 'video/x-ms-wmv',
-    'flv': 'video/x-flv',
-    'webm': 'video/webm',
-    'mp3': 'audio/mpeg',
-    'wav': 'audio/wav',
-    'ogg': 'audio/ogg',
-    'flac': 'audio/flac',
-    'm4a': 'audio/mp4',
-    'wma': 'audio/x-ms-wma',
-    'zip': 'application/zip',
-    'rar': 'application/x-rar-compressed',
-    '7z': 'application/x-7z-compressed'
-  };
-  return typeMap[extension.toLowerCase()] || 'application/octet-stream';
 }
 
 // 格式化文件大小
@@ -66,73 +21,37 @@ function formatFileSize(bytes) {
   return Math.round(bytes / Math.pow(k, i) * 100) / 100 + sizes[i];
 }
 
-// 动态加载脚本，带超时处理
-function loadScript(url, timeout = CONFIG.LOAD_TIMEOUT) {
-  return new Promise((resolve, reject) => {
-    const script = document.createElement('script');
-    script.src = url;
-    script.onload = () => resolve();
-    script.onerror = () => reject(new Error(`Failed to load script: ${url}`));
-    
-    // 添加超时处理
-    const timeoutId = setTimeout(() => {
-      script.onload = null;
-      script.onerror = null;
-      reject(new Error(`Script load timeout: ${url}`));
-    }, timeout);
-    
-    script.onload = () => {
-      clearTimeout(timeoutId);
-      resolve();
-    };
-    
-    script.onerror = () => {
-      clearTimeout(timeoutId);
-      reject(new Error(`Failed to load script: ${url}`));
-    };
-    
-    document.head.appendChild(script);
-  });
-}
-
-// 加载COS SDK
-async function ensureCOSSDK() {
-  if (cosSdkPromise) {
-    return cosSdkPromise;
-  }
+// 获取文件类型
+function getFileType(fileName) {
+  const extension = fileName.split('.').pop()?.toLowerCase();
+  if (!extension) return 'application/octet-stream';
   
-  cosSdkPromise = new Promise(async (resolve, reject) => {
-    try {
-      // 检查COS SDK是否已加载
-      if (window.COS && typeof window.COS === 'function') {
-        resolve(window.COS);
-        return;
-      }
-      
-      // 动态加载COS SDK
-      await loadScript(CONFIG.COS_SDK_URL);
-      
-      // 验证加载结果
-      if (!window.COS || typeof window.COS !== 'function') {
-        throw new Error('COS SDK loaded but not available');
-      }
-      
-      resolve(window.COS);
-    } catch (error) {
-      reject(new Error(`Failed to load COS SDK: ${error.message}`));
-    }
-  });
+  // 参考linksync的简洁分类方式，结合原有downloadData.js的全面性
+  const typeMap = {
+    // 图片
+    'jpg': 'image/jpeg', 'jpeg': 'image/jpeg', 'png': 'image/png', 'gif': 'image/gif',
+    'webp': 'image/webp', 'bmp': 'image/bmp', 'svg': 'image/svg+xml',
+    // 文档
+    'pdf': 'application/pdf', 'doc': 'application/msword', 'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'txt': 'text/plain', 'md': 'text/plain', 'ppt': 'application/vnd.ms-powerpoint',
+    'pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    'xls': 'application/vnd.ms-excel', 'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    // 视频
+    'mp4': 'video/mp4', 'avi': 'video/x-msvideo', 'mov': 'video/quicktime',
+    'wmv': 'video/x-ms-wmv', 'flv': 'video/x-flv', 'webm': 'video/webm',
+    // 音频
+    'mp3': 'audio/mpeg', 'wav': 'audio/wav', 'ogg': 'audio/ogg', 'flac': 'audio/flac',
+    'm4a': 'audio/mp4', 'wma': 'audio/x-ms-wma',
+    // 压缩文件
+    'zip': 'application/zip', 'rar': 'application/x-rar-compressed', '7z': 'application/x-7z-compressed'
+  };
   
-  return cosSdkPromise;
+  return typeMap[extension] || 'application/octet-stream';
 }
 
 // 加载COS配置
 async function loadCOSConfig() {
-  if (cosConfigPromise) {
-    return cosConfigPromise;
-  }
-  
-  cosConfigPromise = new Promise(async (resolve, reject) => {
+  return new Promise((resolve, reject) => {
     try {
       // 检查配置是否已加载
       if (window.COS_CONFIG && window.COS_CONFIG.Bucket && window.COS_CONFIG.Region) {
@@ -140,51 +59,55 @@ async function loadCOSConfig() {
         return;
       }
       
-      // 加载配置文件
-      await loadScript(CONFIG.COS_CONFIG_URL);
+      // 动态加载配置文件
+      const script = document.createElement('script');
+      script.src = CONFIG.COS_CONFIG_URL;
       
-      // 验证配置
-      if (!window.COS_CONFIG) {
-        throw new Error('COS config not found after loading');
-      }
+      script.onload = () => {
+        if (window.COS_CONFIG && window.COS_CONFIG.Bucket && window.COS_CONFIG.Region) {
+          resolve(window.COS_CONFIG);
+        } else {
+          reject(new Error('COS配置加载失败或配置不完整'));
+        }
+      };
       
-      if (!window.COS_CONFIG.Bucket || !window.COS_CONFIG.Region) {
-        throw new Error('Invalid COS config: missing Bucket or Region');
-      }
+      script.onerror = () => {
+        reject(new Error('COS配置文件加载失败'));
+      };
       
-      resolve(window.COS_CONFIG);
+      document.head.appendChild(script);
     } catch (error) {
-      reject(new Error(`Failed to load COS config: ${error.message}`));
+      reject(new Error(`加载COS配置时出错: ${error.message}`));
     }
   });
-  
-  return cosConfigPromise;
-}
-
-// 加载并初始化COS
-async function initializeCOS() {
-  try {
-    const COS = await ensureCOSSDK();
-    const config = await loadCOSConfig();
-    
-    // 创建COS实例
-    return new COS({
-      SecretId: config.SecretId,
-      SecretKey: config.SecretKey,
-      SessionToken: config.SessionToken,
-    });
-  } catch (error) {
-    throw new Error(`Failed to initialize COS: ${error.message}`);
-  }
 }
 
 // 从COS获取下载文件列表
 async function fetchDownloadDataFromCOS() {
   try {
-    // 初始化COS
-    const cos = await initializeCOS();
+    // 确保COS SDK已加载（基于linksync的实现方式）
+    if (!window.COS) {
+      // 动态加载COS SDK
+      await new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/cos-js-sdk-v5@1.4.5/dist/cos-js-sdk-v5.min.js';
+        script.onload = () => resolve();
+        script.onerror = () => reject(new Error('COS SDK加载失败'));
+        document.head.appendChild(script);
+      });
+    }
+    
+    // 加载配置
     const COS_CONFIG = await loadCOSConfig();
     
+    // 初始化COS实例（参考linksync的简洁方式）
+    const cos = new window.COS({
+      SecretId: COS_CONFIG.SecretId,
+      SecretKey: COS_CONFIG.SecretKey,
+      SessionToken: COS_CONFIG.SessionToken,
+    });
+    
+    // 获取文件列表（参考linksync的实现方式）
     return new Promise((resolve, reject) => {
       cos.getBucket({
         Bucket: COS_CONFIG.Bucket,
@@ -200,8 +123,8 @@ async function fetchDownloadDataFromCOS() {
         }
         
         // 验证返回数据结构
-        if (!data || typeof data !== 'object') {
-          reject(new Error('COS返回的数据格式无效'));
+        if (!data || typeof data !== 'object' || !data.Contents || !Array.isArray(data.Contents)) {
+          resolve({ portfolio: [], tools: [] });
           return;
         }
         
@@ -209,37 +132,16 @@ async function fetchDownloadDataFromCOS() {
         const portfolio = [];
         const tools = [];
         
-        if (!data.Contents || !Array.isArray(data.Contents)) {
-          console.warn('COS返回的数据中没有Contents字段或不是数组');
-          resolve({
-            portfolio,
-            tools
-          });
-          return;
-        }
-        
-        // 处理每个文件
+        // 处理每个文件（参考linksync的简洁处理方式）
         data.Contents.forEach(function(item) {
           try {
-            // 验证文件项结构
-            if (!item || typeof item !== 'object' || !item.Key) {
-              console.warn('无效的文件项:', item);
+            if (!item || typeof item !== 'object' || !item.Key || item.Key.endsWith('/')) {
               return;
             }
             
             const key = item.Key;
-            // 跳过目录项（以/结尾的键）和空文件名
-            if (key.endsWith('/')) {
-              return;
-            }
-            
             const fileName = key.split('/').pop();
-            if (!fileName) {
-              return;
-            }
-            
-            // 提取文件扩展名
-            const extension = fileName.split('.').pop()?.toLowerCase();
+            if (!fileName) return;
             
             // 构建文件对象
             const fileObj = {
@@ -248,12 +150,12 @@ async function fetchDownloadDataFromCOS() {
               size: formatFileSize(item.Size || 0),
               updateTime: item.LastModified ? new Date(item.LastModified).toLocaleString() : '',
               url: `https://${COS_CONFIG.Bucket}.cos.${COS_CONFIG.Region}.myqcloud.com/${encodeURIComponent(key)}`,
-              type: getFileType(extension),
+              type: getFileType(fileName),
               cosKey: key
             };
             
             // 分类处理
-            const pathParts = key.split('/').filter(part => part); // 过滤空字符串
+            const pathParts = key.split('/').filter(part => part);
             if (pathParts.length >= 2 && pathParts[0] === 'uploads') {
               const category = pathParts[1];
               if (category === 'tools') {
@@ -261,7 +163,7 @@ async function fetchDownloadDataFromCOS() {
               } else {
                 portfolio.push(fileObj);
               }
-            } else if (pathParts.length === 2 && pathParts[0] === 'uploads') {
+            } else {
               // 直接存放在uploads/目录下的文件
               portfolio.push(fileObj);
             }
@@ -275,10 +177,7 @@ async function fetchDownloadDataFromCOS() {
         portfolio.sort((a, b) => new Date(b.updateTime) - new Date(a.updateTime));
         tools.sort((a, b) => new Date(b.updateTime) - new Date(a.updateTime));
         
-        resolve({
-          portfolio,
-          tools
-        });
+        resolve({ portfolio, tools });
       });
     });
   } catch (error) {
