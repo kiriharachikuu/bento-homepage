@@ -1,5 +1,4 @@
 import siteConfig from './config.js';
-import { getDownloadData } from './downloadData.js';
 import { themeConfig } from './themeConfig.js';
 
 /**
@@ -83,182 +82,9 @@ function initDownloadPage() {
   // 注入内容
   downloadPage.innerHTML = downloadContent;
   
-  // 添加事件监听
-  addDownloadListEventListeners();
 }
 
-/**
- * 根据文件名获取文件类型图标
- * @param {string} fileName - 文件名
- * @returns {string} - 图标HTML
- */
-function getFileTypeIcon(fileName) {
-  // 移除路径前缀，只保留文件名
-  const actualFileName = fileName.split('/').pop();
-  const extension = actualFileName.toLowerCase().split('.').pop();
-  
-  // 图片类型图标
-  const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg'];
-  if (imageExtensions.includes(extension)) {
-    return '<i class="fa-regular fa-file-image mr-2" style="color: #3b82f6;"></i>';
-  }
-  
-  // 文档类型图标
-  const docExtensions = ['pdf', 'doc', 'docx', 'txt', 'md', 'ppt', 'pptx', 'xls', 'xlsx'];
-  if (docExtensions.includes(extension)) {
-    if (extension === 'pdf') {
-      return '<i class="fa-regular fa-file-pdf mr-2" style="color: #ef4444;"></i>';
-    } else if (['doc', 'docx'].includes(extension)) {
-      return '<i class="fa-regular fa-file-word mr-2" style="color: #3b82f6;"></i>';
-    } else if (['xls', 'xlsx'].includes(extension)) {
-      return '<i class="fa-regular fa-file-excel mr-2" style="color: #10b981;"></i>';
-    } else if (['ppt', 'pptx'].includes(extension)) {
-      return '<i class="fa-regular fa-file-powerpoint mr-2" style="color: #f59e0b;"></i>';
-    } else {
-      return '<i class="fa-regular fa-file-lines mr-2" style="color: #6b7280;"></i>';
-    }
-  }
-  
-  // 视频类型图标
-  const videoExtensions = ['mp4', 'avi', 'mov', 'wmv', 'flv', 'webm'];
-  if (videoExtensions.includes(extension)) {
-    return '<i class="fa-regular fa-file-video mr-2" style="color: #f59e0b;"></i>';
-  }
-  
-  // 音频类型图标
-  const audioExtensions = ['mp3', 'wav', 'ogg', 'flac', 'm4a', 'wma'];
-  if (audioExtensions.includes(extension)) {
-    return '<i class="fa-regular fa-file-audio mr-2" style="color: #8b5cf6;"></i>';
-  }
-  
-  // 压缩文件类型图标
-  const zipExtensions = ['zip', 'rar', '7z'];
-  if (zipExtensions.includes(extension)) {
-    return '<i class="fa-solid fa-file-zipper mr-2" style="color: #f59e0b;"></i>';
-  }
-  
-  // 可执行文件类型图标
-  const exeExtensions = ['exe', 'dmg', 'pkg', 'msi'];
-  if (exeExtensions.includes(extension)) {
-    return '<i class="fa-solid fa-file-code mr-2" style="color: #ef4444;"></i>';
-  }
-  
-  // 默认图标
-  return '<i class="fa-regular fa-file mr-2" style="color: #6b7280;"></i>';
-}
 
-/**
- * 生成下载列表HTML
- * @param {Array} files - 文件列表数据
- */
-function generateDownloadList(files) {
-  if (!files || files.length === 0) {
-    return '<div class="text-center py-4" style="color: var(--gray-600);">暂无文件</div>';
-  }
-  
-  return files.map(item => `
-    <div class="flex justify-between items-center p-2 rounded-md" style="color: var(--text-color);">
-      <div class="flex-1">
-          <div class="font-medium">${getFileTypeIcon(item.name)}${item.name.replace('uploads/', '')}</div>
-        <div class="text-sm" style="color: var(--gray-600);">
-          <span class="mr-4">大小：${item.size}</span>
-          <span>更新时间：${item.updateTime}</span>
-        </div>
-      </div>
-      <a href="${item.url}" class="ml-4 px-3 py-1 rounded transition-colors text-sm" 
-         style="background-color: var(--gray-200); color: var(--gray-800); hover:background-color: var(--gray-300);">
-        下载
-      </a>
-    </div>
-  `).join('');
-}
-
-/**
- * 添加下载列表事件监听器
- */
-function addDownloadListEventListeners() {
-  // 获取下载列表容器
-  const listContainer = document.querySelector('.download-list-container');
-  const listTitle = document.getElementById('list-title');
-  const listContent = document.getElementById('download-list-content');
-  
-  // 获取搜索和筛选元素
-  const searchInput = document.getElementById('download-search');
-  const typeFilter = document.getElementById('file-type-filter');
-  
-  if (!listContainer || !listTitle || !listContent) {
-    return;
-  }
-  
-  // 记录当前显示的分类和原始文件数据
-  let currentFiles = [];
-  const defaultCategory = 'portfolio'; // 默认显示作品集
-  
-  // 加载文件数据的函数
-  async function loadFiles(category) {
-    try {
-      // 显示加载状态
-      listContent.innerHTML = '<div class="text-center py-4" style="color: var(--gray-600);">加载中...</div>';
-      
-      // 从腾讯云COS获取文件列表数据
-      const data = await getDownloadData();
-      currentFiles = data[category] || [];
-      
-      // 应用搜索和筛选条件
-      applyFilters();
-    } catch (error) {
-      console.error('加载文件失败:', error);
-      listContent.innerHTML = '<div class="text-center py-4" style="color: #ef4444;">加载文件失败，请稍后重试</div>';
-    }
-  }
-  
-  // 应用搜索和筛选条件
-  function applyFilters() {
-    let filteredFiles = [...currentFiles];
-    
-    // 应用搜索过滤
-    const searchTerm = searchInput?.value.toLowerCase() || '';
-    if (searchTerm) {
-      filteredFiles = filteredFiles.filter(file => {
-        // 只在实际文件名部分搜索（移除路径前缀）
-        const actualFileName = file.name.split('/').pop();
-        return actualFileName.toLowerCase().includes(searchTerm);
-      });
-    }
-    
-    // 应用文件类型过滤
-    const selectedType = typeFilter?.value || 'all';
-    if (selectedType !== 'all') {
-      // 定义文件类型分类
-      const fileTypeMap = {
-        image: ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.svg'],
-        document: ['.pdf', '.doc', '.docx', '.txt', '.md', '.ppt', '.pptx', '.xls', '.xlsx'],
-        video: ['.mp4', '.avi', '.mov', '.wmv', '.flv', '.webm'],
-        audio: ['.mp3', '.wav', '.ogg', '.flac', '.m4a', '.wma'],
-        other: ['.zip', '.rar', '.7z', '.exe', '.dmg', '.pkg', '.msi']
-      };
-      
-      // 获取当前分类对应的扩展名列表
-      const extensions = fileTypeMap[selectedType] || [];
-      
-      // 过滤文件
-      filteredFiles = filteredFiles.filter(file => {
-        const fileName = file.name.toLowerCase();
-        return extensions.some(ext => fileName.endsWith(ext));
-      });
-    }
-    
-    // 重新渲染列表
-    listContent.innerHTML = generateDownloadList(filteredFiles);
-  }
-  
-  // 添加搜索和筛选事件监听
-  searchInput?.addEventListener('input', applyFilters);
-  typeFilter?.addEventListener('change', applyFilters);
-  
-  // 直接加载作品集数据
-  loadFiles(defaultCategory);
-}
 
 /**
  * 添加夜间模式切换事件监听器
@@ -358,36 +184,7 @@ function updateNightModeButton(isNightMode) {
   }
 }
 
-/**
- * 展开下载列表
- * @param {HTMLElement} listContainer - 列表容器
- */
-function openDownloadList(listContainer) {
-  // 计算列表内容的高度
-  const contentHeight = listContainer.firstElementChild.scrollHeight;
-  // 设置最大高度，触发下拉动画
-  listContainer.style.maxHeight = `${contentHeight + 20}px`; // 20px为内边距
-}
 
-/**
- * 收起下载列表
- * @param {HTMLElement} listContainer - 列表容器
- * @returns {Promise} - 动画完成的Promise
- */
-function closeDownloadList(listContainer) {
-  return new Promise(resolve => {
-    // 设置最大高度为0，触发上拉动画
-    listContainer.style.maxHeight = '0';
-    
-    // 监听动画结束
-    const handleTransitionEnd = () => {
-      listContainer.removeEventListener('transitionend', handleTransitionEnd);
-      resolve();
-    };
-    
-    listContainer.addEventListener('transitionend', handleTransitionEnd);
-  });
-}
 
 /**
  * 更新页面头部内容
