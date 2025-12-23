@@ -44,41 +44,39 @@ function initDownloadPage() {
   // 创建下载页面内容
   const downloadContent = `
     <div class="download-container bg-white rounded-2xl p-6 shadow-lg">
-      <h2 class="download-title text-2xl font-bold mb-6">下载中心</h2>
-      <!-- 统一的下载列表区域 -->
-      <div class="download-list-container mt-6">
-        <div class="download-list rounded-lg shadow-md p-4" style="background-color: var(--card-bg);">
-          <h4 class="download-list-title font-medium mb-3" id="list-title" style="color: var(--text-color);">作品集下载列表</h4>
-          
-          <!-- 添加搜索和筛选功能 -->
-          <div class="download-filters mb-4">
-            <div class="flex flex-col md:flex-row gap-3">
-              <!-- 搜索框 -->
-              <div class="flex-1">
-                <input type="text" id="download-search" placeholder="搜索文件名..." 
-                  class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" 
-                  style="border-color: var(--border-color); background-color: var(--card-bg); color: var(--text-color);">
-              </div>
-              <!-- 文件类型筛选 -->
-              <div class="flex items-center gap-2">
-                <label for="file-type-filter" class="text-sm" style="color: var(--gray-600);">文件类型：</label>
-                <select id="file-type-filter" 
-                  class="px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" 
-                  style="border-color: var(--border-color); background-color: var(--card-bg); color: var(--text-color);">
-                  <option value="all">所有类型</option>
-                  <option value="image">图片</option>
-                  <option value="document">文档</option>
-                  <option value="video">视频</option>
-                  <option value="audio">音频</option>
-                  <option value="other">其他</option>
-                </select>
-              </div>
+    <h2 class="download-title text-2xl font-bold mb-6">下载中心</h2>
+    <div id="files-view" class="p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <div class="relative w-1/2">
+                        <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-text-color"></i>
+                        <input id="file-search" type="text" placeholder="搜索文件..." class="w-full bg-gray-700 border border-gray-600 rounded-md py-2 pl-10 pr-4 focus:outline-none focus:ring-2 focus:ring-primary-color">
+                    </div>
+                    <select id="file-filter" class="bg-gray-700 border border-gray-600 rounded-md py-2 px-4 focus:outline-none focus:ring-2 focus:ring-primary-color">
+                        <option value="all">所有文件</option>
+                        <option value="image">图片</option>
+                        <option value="document">文档</option>
+                        <option value="video">视频</option>
+                        <option value="audio">音频</option>
+                        <option value="other">其他</option>
+                    </select>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left">
+                        <thead>
+                            <tr class="border-b border-gray-700">
+                                <th class="p-3">文件名</th>
+                                <th class="p-3">大小</th>
+                                <th class="p-3">上传时间</th>
+                                <th class="p-3">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="files-list">
+                            <!-- 文件列表将通过 JavaScript 动态生成 -->
+                        </tbody>
+                    </table>
+                </div>
             </div>
-          </div>
-          
-          <div class="space-y-3" id="download-list-content"></div>
-        </div>
-      </div>
+    <div id="toast" class="toast"></div>
     </div>
   `;
   
