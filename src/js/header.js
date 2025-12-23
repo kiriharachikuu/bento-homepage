@@ -45,26 +45,10 @@ function initDownloadPage() {
   const downloadContent = `
     <div class="download-container bg-white rounded-2xl p-6 shadow-lg">
       <h2 class="download-title text-2xl font-bold mb-6">下载中心</h2>
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div class="download-category bg-gray-100 rounded-xl p-6">
-          <h3 class="download-category-title text-lg font-semibold mb-2">作品集</h3>
-          <p class="download-category-desc text-gray-600 mb-4">我的音乐作品集下载</p>
-          <button class="inline-block px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors" data-category="portfolio">
-            立即下载
-          </button>
-        </div>
-        <div class="download-category bg-gray-100 rounded-xl p-6">
-          <h3 class="download-category-title text-lg font-semibold mb-2">工具集</h3>
-          <p class="download-category-desc text-gray-600 mb-4">常用工具和资源下载</p>
-          <button class="inline-block px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors" data-category="tools">
-            立即下载
-          </button>
-        </div>
-      </div>
       <!-- 统一的下载列表区域 -->
-      <div class="download-list-container mt-6 overflow-hidden transition-all duration-500 ease-in-out max-h-0">
+      <div class="download-list-container mt-6">
         <div class="download-list rounded-lg shadow-md p-4" style="background-color: var(--card-bg);">
-          <h4 class="download-list-title font-medium mb-3" id="list-title" style="color: var(--text-color);">下载列表</h4>
+          <h4 class="download-list-title font-medium mb-3" id="list-title" style="color: var(--text-color);">作品集下载列表</h4>
           
           <!-- 添加搜索和筛选功能 -->
           <div class="download-filters mb-4">
@@ -195,8 +179,6 @@ function generateDownloadList(files) {
  * 添加下载列表事件监听器
  */
 function addDownloadListEventListeners() {
-  // 获取所有下载按钮
-  const downloadButtons = document.querySelectorAll('[data-category]');
   // 获取下载列表容器
   const listContainer = document.querySelector('.download-list-container');
   const listTitle = document.getElementById('list-title');
@@ -211,8 +193,8 @@ function addDownloadListEventListeners() {
   }
   
   // 记录当前显示的分类和原始文件数据
-  let currentCategory = null;
   let currentFiles = [];
+  const defaultCategory = 'portfolio'; // 默认显示作品集
   
   // 加载文件数据的函数
   async function loadFiles(category) {
@@ -276,43 +258,8 @@ function addDownloadListEventListeners() {
   searchInput?.addEventListener('input', applyFilters);
   typeFilter?.addEventListener('change', applyFilters);
   
-  downloadButtons.forEach(button => {
-    button.addEventListener('click', async () => {
-      const category = button.getAttribute('data-category');
-      
-      if (currentCategory === category) {
-        // 如果点击的是当前显示的分类，收起列表
-        await closeDownloadList(listContainer);
-        currentCategory = null;
-        currentFiles = [];
-        
-        // 清空搜索和筛选
-        if (searchInput) searchInput.value = '';
-        if (typeFilter) typeFilter.value = 'all';
-      } else {
-        // 如果点击的是不同分类，先收起当前列表，再展开新列表
-        if (currentCategory !== null) {
-          await closeDownloadList(listContainer);
-        }
-        
-        // 更新当前分类
-        currentCategory = category;
-        
-        // 更新列表标题
-        const categoryNames = {
-          portfolio: '作品集下载列表',
-          tools: '工具集下载列表'
-        };
-        listTitle.textContent = categoryNames[category] || '下载列表';
-        
-        // 加载文件数据
-        await loadFiles(category);
-        
-        // 展开新列表
-        openDownloadList(listContainer);
-      }
-    });
-  });
+  // 直接加载作品集数据
+  loadFiles(defaultCategory);
 }
 
 /**

@@ -113,17 +113,7 @@ body {
   color: var(--text-color);
 }
 
-.night-mode .download-category {
-  background-color: #383838 !important;
-}
 
-.night-mode .download-category-title {
-  color: var(--text-color);
-}
-
-.night-mode .download-category-desc {
-  color: var(--gray-600);
-}
 
 .night-mode .download-list {
   background-color: var(--card-bg);
