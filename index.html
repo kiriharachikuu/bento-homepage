@@ -20,7 +20,6 @@
     <!-- 高德地图API -->
     <script type="text/javascript" src="https://webapi.amap.com/maps?v=2.0&key=f79674766531d46a40852dc77860ba25" crossorigin="anonymous"></script>
     
-    <script src="https://cdn.jsdelivr.net/npm/lucide@0.544.0/dist/umd/lucide.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/cos-js-sdk-v5/dist/cos-js-sdk-v5.min.js"></script>
     <script src="https://chikuu-1252656027.cos.ap-nanjing.myqcloud.com/config-v1.js"></script>
@@ -79,7 +78,7 @@
             <div id="files-view" class="p-6">
               <div class="flex justify-between items-center mb-4">
                 <div class="relative">
-                  <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style="color: var(--gray-600);"></i>
+                  <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-muted-text-color"></i>
                   <input id="file-search" type="text" placeholder="搜索文件..." class="w-full rounded-md py-2 pl-10 pr-4 focus:outline-none focus:ring-2" style="background-color: var(--gray-100); border: 1px solid var(--border-color); color: var(--text-color); outline: none; &:focus { box-shadow: 0 0 0 2px var(--link-color); }">
                 </div>
                 <select id="file-filter" class="p-2 border rounded-md" style="background-color: var(--gray-100); border: 1px solid var(--border-color); color: var(--text-color); outline: none;">
@@ -90,18 +89,8 @@
                   <option value="audio">音频</option>
                 </select>
               </div>
-              <div class="overflow-x-auto transform translateZ(0)">
-                    <table class="w-full text-left">
-                        <thead>
-                            <tr class="border-b" style="border-bottom-color: var(--border-color);">
-                                <th class="p-3">文件名</th>
-                                <th class="p-3">大小</th>
-                                <th class="p-3">上传时间</th>
-                                <th class="p-3">操作</th>
-                            </tr>
-                        </thead>
-                        <tbody id="files-list"></tbody>
-                    </table>
+              <div class="transform translateZ(0)">
+                    <div id="files-list"></div>
                 </div>
             </div>
             <div id="toast" class="toast"></div>
@@ -120,9 +109,6 @@
       </footer>
     </div>
     <script type="module" src="/src/main.js"></script>
-    <script>
-        // 初始化 Lucide 图标
-        lucide.createIcons();
-    </script>
+
   </body>
 </html>
