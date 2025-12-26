@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="zh-CN" class="scroll-smooth">
-  <head>
+<head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/img/favicon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -11,104 +11,85 @@
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+	
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'">
     <noscript><link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"></noscript>
     
-    <!-- 高德地图API -->
+	<!-- 高德地图API -->
     <script type="text/javascript" src="https://webapi.amap.com/maps?v=2.0&key=f79674766531d46a40852dc77860ba25" crossorigin="anonymous"></script>
-    
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/cos-js-sdk-v5/dist/cos-js-sdk-v5.min.js"></script>
     <script src="https://chikuu-1252656027.cos.ap-nanjing.myqcloud.com/config-v1.js"></script>
     <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    fontFamily: {
-                        sans: ['Inter', 'sans-serif']
-                    }
-                }
-            }
-        }
+        tailwind.config = { theme: { extend: { fontFamily: { sans: ['Inter', 'sans-serif'] } } } } 
     </script>
     <style>
-        :root {
-            --secondary-color: #34D399;
-        }
-        .toast {
-            position: fixed;
-            bottom: 2rem;
-            left: 50%;
-            transform: translateX(-50%);
-            padding: 0.75rem 1.5rem;
-            border-radius: 0.5rem;
-            background-color: var(--secondary-color);
-            color: white;
-            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1);
-            opacity: 0;
-            transition: opacity 0.5s ease;
-            z-index: 9999;
-        }
-        .toast.show {
-            opacity: 1;
-        }
+        :root { --secondary-color: #34D399; } .toast { position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%); padding: 0.75rem 1.5rem; border-radius: 0.5rem; background-color: var(--secondary-color); color: white; box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1); opacity: 0; transition: opacity 0.5s ease; z-index: 9999; } .toast.show { opacity: 1; } 
     </style>
-  </head>
-  <body class="font-sans">
+</head>
+<body class="font-sans">
     <div id="app" class="container mx-auto px-2 py-8 overflow-hidden">
-      <!-- 头部区域 -->
-      <header id="page-header" class="flex flex-col md:flex-row justify-between items-center mb-12 fade-in">
-        <!-- 头部内容将通过 JavaScript 动态注入 -->
-      </header>
-
-      <!-- 主内容容器 -->
-      <div id="main-content-container" class="relative">
-        <!-- 网格卡片容器 - 主页 -->
-        <div id="home-page" class="grid-container grid gap-4 auto-rows-min w-full transition-all duration-500 ease-in-out">
-          <!-- 卡片将通过 JavaScript 动态注入 -->
+        <header id="page-header" class="flex flex-col md:flex-row justify-between items-center mb-12 fade-in"> 
+		    <!-- 头部内容将通过 JavaScript 动态注入 -->
+		</header>
+		<!-- 主内容容器 -->
+        <div id="main-content-container" class="relative">
+			
+			<!-- 网格卡片容器 - 主页 -->
+            <div id="home-page" class="grid-container grid gap-4 auto-rows-min w-full transition-all duration-500 ease-in-out">
+				<!-- 卡片将通过 JavaScript 动态注入 -->
+			</div>
+			
+			<!-- 下载板块 -->
+            <div id="download-page" class="absolute top-0 left-0 w-full opacity-0 transition-all duration-500 ease-in-out transform translate-x-full">
+                <div class="download-container rounded-2xl p-6 shadow-lg" style="background-color: var(--card-bg); color: var(--text-color);">
+                    <h2 class="download-title text-2xl font-bold mb-6">下载中心</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="download-category bg-gray-100 rounded-xl p-6">
+                            <h3 class="download-category-title text-lg font-semibold mb-2">作品集</h3>
+                            <p class="download-category-desc text-gray-600 mb-4">我的音乐作品集下载</p> <button class="inline-block px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors" data-category="portfolio"> 立即下载 </button>
+                        </div>
+                        <div class="download-category bg-gray-100 rounded-xl p-6">
+                            <h3 class="download-category-title text-lg font-semibold mb-2">工具集</h3>
+                            <p class="download-category-desc text-gray-600 mb-4">常用工具和资源下载</p> <button class="inline-block px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors" data-category="tools"> 立即下载 </button>
+                        </div>
+                    </div>
+                    <div id="files-view" class="p-6">
+                        <div class="flex justify-between items-center mb-4">
+                            <div class="relative"> <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-muted-text-color"></i> <input id="file-search" type="text" placeholder="搜索文件..." class="w-full rounded-md py-2 pl-10 pr-4 focus:outline-none focus:ring-2"
+                                    style="background-color: var(--gray-100); border: 1px solid var(--border-color); color: var(--text-color); outline: none; &:focus { box-shadow: 0 0 0 2px var(--link-color); }"> </div> <select id="file-filter" class="p-2 border rounded-md"
+                                style="background-color: var(--gray-100); border: 1px solid var(--border-color); color: var(--text-color); outline: none;">
+                                <option value="all">所有文件</option>
+                                <option value="image">图片</option>
+                                <option value="document">文档</option>
+                                <option value="video">视频</option>
+                                <option value="audio">音频</option>
+                            </select>
+                        </div>
+                        <div class="transform translateZ(0)">
+                            <div id="files-list">
+								<!-- 通过 JavaScript 动态注入 -->
+							</div>
+                        </div>
+                    </div>
+                    <div id="toast" class="toast"></div>
+                </div>
+            </div>			
         </div>
-        
-        <!-- 下载板块 -->
-        <div id="download-page" class="absolute top-0 left-0 w-full opacity-0 transition-all duration-500 ease-in-out transform translate-x-full">
-          <div class="download-container rounded-2xl p-6 shadow-lg" style="background-color: var(--card-bg); color: var(--text-color);">
-            <h2 class="download-title text-2xl font-bold mb-6">下载中心</h2>
-            <div id="files-view" class="p-6">
-              <div class="flex justify-between items-center mb-4">
-                <div class="relative">
-                  <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-muted-text-color"></i>
-                  <input id="file-search" type="text" placeholder="搜索文件..." class="w-full rounded-md py-2 pl-10 pr-4 focus:outline-none focus:ring-2" style="background-color: var(--gray-100); border: 1px solid var(--border-color); color: var(--text-color); outline: none; &:focus { box-shadow: 0 0 0 2px var(--link-color); }">
-                </div>
-                <select id="file-filter" class="p-2 border rounded-md" style="background-color: var(--gray-100); border: 1px solid var(--border-color); color: var(--text-color); outline: none;">
-                  <option value="all">所有文件</option>
-                  <option value="image">图片</option>
-                  <option value="document">文档</option>
-                  <option value="video">视频</option>
-                  <option value="audio">音频</option>
-                </select>
-              </div>
-              <div class="transform translateZ(0)">
-                    <div id="files-list"></div>
-                </div>
+		
+		<!-- 页脚区域 -->
+        <footer class="mt-16 text-center text-sm">
+            <div id="page-footer">
+                <p id="made-by"></p>
+                <p id="powered-by"></p>
+                <p id="inspired-by"></p>
+                <p class="text-gray-600 text-sm" id="copyright"></p>
             </div>
-            <div id="toast" class="toast"></div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 页脚区域 -->
-      <footer class="mt-16 text-center text-sm">
-        <div id="page-footer">
-          <p id="made-by"></p>
-          <p id="powered-by"></p>
-          <p id="inspired-by"></p>
-          <p class="text-gray-600 text-sm" id="copyright"></p>
-        </div>
-      </footer>
+        </footer>
     </div>
     <script type="module" src="/src/main.js"></script>
-
-  </body>
+</body>
 </html>
