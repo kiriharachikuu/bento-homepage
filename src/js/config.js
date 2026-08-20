@@ -97,6 +97,16 @@ const siteConfig = {
   // 音乐播放器配置
   musicPlayer: {
     playlistId: "17479746916"
+  },
+
+  // 备案信息
+  beian: {
+    enabled: false,
+    icpNumber: "",
+    icpLink: "https://beian.miit.gov.cn",
+    policeNumber: "",
+    policeLink: "",
+    customText: ""
   }
 };
 

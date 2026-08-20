@@ -1,6 +1,9 @@
 import siteConfig from './config.js';
 import { themeConfig } from './themeConfig.js';
 
+// 系统主题变化监听是否已注册（updateHeader 可能被重复调用，全局监听只注册一次）
+let mediaQueryListenerBound = false;
+
 /**
  * 根据主题设置CSS变量
  * @param {string} theme - 主题名称 ('light' 或 'dark')
@@ -73,21 +76,24 @@ function initNightMode() {
   // 更新按钮图标
   updateNightModeButton(isNightMode);
   
-  // 监听系统主题变化
-  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
-    // 只有在用户没有手动选择主题时，才根据系统主题变化
-    if (localStorage.getItem('isNightMode') === null) {
-      const newIsNightMode = e.matches;
-      if (newIsNightMode) {
-        document.body.classList.add('night-mode');
-        setThemeVariables('dark');
-      } else {
-        document.body.classList.remove('night-mode');
-        setThemeVariables('light');
+  // 监听系统主题变化（全局事件只注册一次，避免重复渲染头部时重复绑定）
+  if (!mediaQueryListenerBound) {
+    mediaQueryListenerBound = true;
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+      // 只有在用户没有手动选择主题时，才根据系统主题变化
+      if (localStorage.getItem('isNightMode') === null) {
+        const newIsNightMode = e.matches;
+        if (newIsNightMode) {
+          document.body.classList.add('night-mode');
+          setThemeVariables('dark');
+        } else {
+          document.body.classList.remove('night-mode');
+          setThemeVariables('light');
+        }
+        updateNightModeButton(newIsNightMode);
       }
-      updateNightModeButton(newIsNightMode);
-    }
-  });
+    });
+  }
 }
 
 /**
@@ -284,4 +290,74 @@ export function updateFooter() {
     const userName = siteConfig?.user?.name || 'Unknown';
     copyrightElement.textContent = `© ${currentYear} ${userName}. All rights reserved.`;
   }
+  
+  // 渲染页脚备案区块
+  renderBeianSection();
+}
+
+/**
+ * 渲染页脚备案区块（ICP 备案 / 公安备案 / 自定义文本）
+ * 使用 DOM API 构建元素，文本以 textContent / 文本节点写入，防止 XSS
+ */
+function renderBeianSection() {
+  const footerContainer = document.getElementById('page-footer');
+  if (!footerContainer) {
+    return;
+  }
+
+  // 移除旧的备案区块，保证重复渲染幂等
+  const existing = document.getElementById('beian-section');
+  if (existing) {
+    existing.remove();
+  }
+
+  const beian = siteConfig.beian;
+  // 未启用备案或配置缺失时不渲染
+  if (!beian || !beian.enabled) {
+    return;
+  }
+
+  // 备案行容器
+  const beianElement = document.createElement('p');
+  beianElement.id = 'beian-section';
+
+  // ICP 备案号（链接默认指向工信部备案系统）
+  if (beian.icpNumber) {
+    const icpLink = document.createElement('a');
+    icpLink.href = beian.icpLink || 'https://beian.miit.gov.cn';
+    icpLink.target = '_blank';
+    icpLink.rel = 'noopener noreferrer';
+    icpLink.className = 'hover:text-link-hover';
+    icpLink.style.color = 'var(--gray-600)';
+    icpLink.textContent = beian.icpNumber;
+    beianElement.appendChild(icpLink);
+  }
+
+  // 公安备案号（有值才渲染，链接无值时不设置 href）
+  if (beian.policeNumber) {
+    // 与前一项之间用空格分隔
+    if (beianElement.childNodes.length > 0) {
+      beianElement.appendChild(document.createTextNode(' '));
+    }
+    const policeLink = document.createElement('a');
+    if (beian.policeLink) {
+      policeLink.href = beian.policeLink;
+    }
+    policeLink.target = '_blank';
+    policeLink.rel = 'noopener noreferrer';
+    policeLink.className = 'hover:text-link-hover';
+    policeLink.style.color = 'var(--gray-600)';
+    policeLink.textContent = beian.policeNumber;
+    beianElement.appendChild(policeLink);
+  }
+
+  // 自定义备案文本（文本节点写入，防止 XSS）
+  if (beian.customText) {
+    if (beianElement.childNodes.length > 0) {
+      beianElement.appendChild(document.createTextNode(' '));
+    }
+    beianElement.appendChild(document.createTextNode(beian.customText));
+  }
+
+  footerContainer.appendChild(beianElement);
 }

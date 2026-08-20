@@ -3,6 +3,16 @@ import { CardManager } from './js/components/CardManager.js'
 import { VideoListModal } from './js/components/VideoListModal.js'
 import { updateAllFanCounts } from './js/site.js'
 import { updateHeader, updateFooter } from './js/header.js'
+import { initRemoteConfig } from './js/remoteConfig.js'
+
+// 模块级状态：保证 renderApp 可重复调用（单例与一次性事件只初始化一次）
+let gridManager = null
+let columnGap = 0
+let rowGap = 0
+let draggables = []
+let videoListModal = null
+let containerDragEventsBound = false
+let moreVideoObserver = null
 
 // 动态加载高德地图API
 function loadAMapAPI() {
@@ -125,9 +135,11 @@ async function initMapCard(cardManager) {
   }
 }
 
-// 初始化网站功能
-document.addEventListener('DOMContentLoaded', async function () {
-  // 更新页面头部和页脚
+/**
+ * 渲染整个前台应用（可重复调用：远程配置后台刷新后会再次触发）
+ */
+function renderApp() {
+  // 更新页面头部和页脚（含备案区块）
   updateHeader();
   updateFooter();
   
@@ -137,22 +149,22 @@ document.addEventListener('DOMContentLoaded', async function () {
   // 创建所有卡片
   cardManager.createAllCards()
 
-  // 渲染所有卡片到网格容器
+  // 渲染所有卡片到网格容器（renderTo 内部会清空容器，重复调用安全）
   cardManager.renderTo('.grid-container')
   
   // 添加拖拽功能
   const container = document.querySelector('.grid-container')
-  let draggables = document.querySelectorAll('.draggable-card')
+  draggables = document.querySelectorAll('.draggable-card')
   
   // 初始化网格管理器
-  const gridManager = new GridManager(4, 100)
+  gridManager = new GridManager(4, 100)
   // 初始计算所有卡片的位置
   gridManager.recalculateAllPositions()
   
   // 缓存容器样式信息
   const containerComputed = getComputedStyle(container)
-  const columnGap = parseFloat(containerComputed.columnGap) || 0
-  const rowGap = parseFloat(containerComputed.rowGap) || 0
+  columnGap = parseFloat(containerComputed.columnGap) || 0
+  rowGap = parseFloat(containerComputed.rowGap) || 0
   
   // 为每个可拖拽元素添加索引属性
   draggables.forEach((draggable, index) => {
@@ -232,76 +244,79 @@ document.addEventListener('DOMContentLoaded', async function () {
     })
   })
   
-  // 容器事件处理
-  container.addEventListener('dragover', (e) => {
-    e.preventDefault()
-    e.dataTransfer.dropEffect = 'move'
+  // 容器事件处理（容器元素在重渲染间保留，只绑定一次避免重复注册）
+  if (!containerDragEventsBound) {
+    containerDragEventsBound = true
+    container.addEventListener('dragover', (e) => {
+      e.preventDefault()
+      e.dataTransfer.dropEffect = 'move'
     
-    const target = e.target.closest('.draggable-card:not(.dragging)')
-    const draggedItem = container.querySelector('.draggable-card.dragging')
+      const target = e.target.closest('.draggable-card:not(.dragging)')
+      const draggedItem = container.querySelector('.draggable-card.dragging')
     
-    if (target && draggedItem && draggedItem._placeholder) {
-      // 移除现有的占位符
-      container.querySelectorAll('.placeholder').forEach(ph => ph.remove())
+      if (target && draggedItem && draggedItem._placeholder) {
+        // 移除现有的占位符
+        container.querySelectorAll('.placeholder').forEach(ph => ph.remove())
       
-      // 计算放置位置
-      const rect = target.getBoundingClientRect()
-      const x = e.clientX - rect.left
-      const y = e.clientY - rect.top
-      const horizontalMidpoint = rect.width / 2
-      const verticalMidpoint = rect.height / 2
+        // 计算放置位置
+        const rect = target.getBoundingClientRect()
+        const x = e.clientX - rect.left
+        const y = e.clientY - rect.top
+        const horizontalMidpoint = rect.width / 2
+        const verticalMidpoint = rect.height / 2
       
-      // 根据鼠标位置决定插入方向
-      const insertAfter = (x > horizontalMidpoint && y > verticalMidpoint) || 
-                          (x > horizontalMidpoint && y <= verticalMidpoint) ||
-                          (x <= horizontalMidpoint && y > verticalMidpoint)
+        // 根据鼠标位置决定插入方向
+        const insertAfter = (x > horizontalMidpoint && y > verticalMidpoint) || 
+                            (x > horizontalMidpoint && y <= verticalMidpoint) ||
+                            (x <= horizontalMidpoint && y > verticalMidpoint)
       
-      // 应用挤压效果到其他卡片
-      applyShiftEffect(target, insertAfter, columnGap, rowGap, gridManager)
+        // 应用挤压效果到其他卡片
+        applyShiftEffect(target, insertAfter, columnGap, rowGap, gridManager)
       
-      // 插入占位符
-      if (insertAfter) {
-        target.parentNode.insertBefore(draggedItem._placeholder, target.nextSibling)
-      } else {
-        target.parentNode.insertBefore(draggedItem._placeholder, target)
+        // 插入占位符
+        if (insertAfter) {
+          target.parentNode.insertBefore(draggedItem._placeholder, target.nextSibling)
+        } else {
+          target.parentNode.insertBefore(draggedItem._placeholder, target)
+        }
       }
-    }
-  })
-  
-  container.addEventListener('dragenter', (e) => {
-    e.preventDefault()
-  })
-  
-  container.addEventListener('drop', (e) => {
-    e.preventDefault()
-    
-    const draggedItem = container.querySelector('.draggable-card.dragging')
-    if (draggedItem && draggedItem._placeholder && draggedItem._placeholder.parentNode) {
-      // 交换元素位置
-      draggedItem._placeholder.parentNode.insertBefore(draggedItem, draggedItem._placeholder)
-      
-      // 更新所有卡片的索引
-      updateCardIndices()
-      
-      // 重新计算所有卡片的位置
-      gridManager.recalculateAllPositions()
-      
-      // 更新draggables集合
-      draggables = container.querySelectorAll('.draggable-card')
-    }
-    
-    // 移除占位符
-    container.querySelectorAll('.placeholder').forEach(ph => ph.remove())
-    
-    // 移除挤压效果
-    draggables.forEach(card => {
-      card.classList.remove('shift-left', 'shift-right', 'shift-up', 'shift-down')
-      card.style.removeProperty('transition')
     })
+  
+    container.addEventListener('dragenter', (e) => {
+      e.preventDefault()
+    })
+  
+    container.addEventListener('drop', (e) => {
+      e.preventDefault()
     
-    // 填充空位
-    fillEmptySpaces(gridManager)
-  })
+      const draggedItem = container.querySelector('.draggable-card.dragging')
+      if (draggedItem && draggedItem._placeholder && draggedItem._placeholder.parentNode) {
+        // 交换元素位置
+        draggedItem._placeholder.parentNode.insertBefore(draggedItem, draggedItem._placeholder)
+      
+        // 更新所有卡片的索引
+        updateCardIndices()
+      
+        // 重新计算所有卡片的位置
+        gridManager.recalculateAllPositions()
+      
+        // 更新draggables集合
+        draggables = container.querySelectorAll('.draggable-card')
+      }
+    
+      // 移除占位符
+      container.querySelectorAll('.placeholder').forEach(ph => ph.remove())
+    
+      // 移除挤压效果
+      draggables.forEach(card => {
+        card.classList.remove('shift-left', 'shift-right', 'shift-up', 'shift-down')
+        card.style.removeProperty('transition')
+      })
+    
+      // 填充空位
+      fillEmptySpaces(gridManager)
+    })
+  }
 
   // 初始化粉丝数更新
   updateAllFanCounts()
@@ -309,13 +324,17 @@ document.addEventListener('DOMContentLoaded', async function () {
   // 初始化地图
   initMapCard(cardManager);
   
-  // 初始化视频列表弹窗
-  const videoListModal = new VideoListModal();
+  // 初始化视频列表弹窗（单例：重复渲染时复用，避免向 body 堆积弹窗 DOM 与全局键盘事件）
+  if (!videoListModal) {
+    videoListModal = new VideoListModal();
+  }
   
   // 添加"更多视频"卡片点击事件监听
   function addMoreVideoCardListener() {
     const moreVideoCard = document.getElementById('more-video-card');
-    if (moreVideoCard) {
+    // 重渲染后为新元素正常绑定；同一元素上防止 MutationObserver 触发导致的重复绑定
+    if (moreVideoCard && !moreVideoCard._listenerBound) {
+      moreVideoCard._listenerBound = true;
       moreVideoCard.addEventListener('click', () => {
         videoListModal.show();
       });
@@ -325,16 +344,25 @@ document.addEventListener('DOMContentLoaded', async function () {
   // 初始添加事件监听
   addMoreVideoCardListener();
   
-  // 监听DOM变化，确保动态添加的卡片也能触发事件
-  const observer = new MutationObserver(() => {
-    addMoreVideoCardListener();
-  });
-  
-  observer.observe(document.body, {
-    childList: true,
-    subtree: true
-  });
-})
+  // 监听DOM变化，确保动态添加的卡片也能触发事件（观察器只创建一次）
+  if (!moreVideoObserver) {
+    moreVideoObserver = new MutationObserver(() => {
+      addMoreVideoCardListener();
+    });
+    
+    moreVideoObserver.observe(document.body, {
+      childList: true,
+      subtree: true
+    });
+  }
+}
+
+// 启动流程：先加载远程配置（有缓存同步应用 / 无缓存等待远程接口，失败则静态兜底），再渲染页面
+document.addEventListener('DOMContentLoaded', async function () {
+  // 缓存后台刷新发现配置变化时，通过回调触发页面重渲染
+  await initRemoteConfig(() => renderApp());
+  renderApp();
+});
 
 // 应用挤压效果到其他卡片
 function applyShiftEffect(target, insertAfter, columnGap, rowGap, gridManager) {

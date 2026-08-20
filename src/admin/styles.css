@@ -1,0 +1,920 @@
+/* ============================================================
+   内容管理后台 - 全站手写样式（无 UI 框架）
+   供 admin/index.html 引入，登录视图 / 后台框架 / 各管理页共用
+   ============================================================ */
+
+/* ---------- CSS 变量 ---------- */
+:root {
+    /* 主题色 */
+    --color-primary: #4f46e5;
+    --color-primary-hover: #4338ca;
+    --color-success: #16a34a;
+    --color-danger: #dc2626;
+    --color-warning: #d97706;
+
+    /* 中性色 */
+    --color-bg: #f5f6f8;
+    --color-card: #ffffff;
+    --color-border: #e5e7eb;
+    --color-text: #111827;
+    --color-text-secondary: #6b7280;
+
+    /* 侧边栏 */
+    --sidebar-bg: #1e1b2e;
+    --sidebar-width: 220px;
+
+    /* 通用圆角 / 阴影 */
+    --radius: 8px;
+    --shadow: 0 1px 3px rgba(17, 24, 39, 0.08);
+    --shadow-lg: 0 12px 32px rgba(17, 24, 39, 0.16);
+}
+
+/* ---------- 基础重置 ---------- */
+* {
+    box-sizing: border-box;
+}
+
+html,
+body {
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    background: var(--color-bg);
+    color: var(--color-text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
+        'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+a {
+    color: var(--color-primary);
+    text-decoration: none;
+}
+
+h1,
+h2,
+h3,
+h4 {
+    margin: 0;
+    font-weight: 600;
+}
+
+/* ============================================================
+   登录视图
+   ============================================================ */
+.login-wrap {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    gap: 16px;
+}
+
+/* KV 未绑定等部署指引卡片 */
+.login-notice {
+    max-width: 400px;
+    width: 100%;
+    padding: 14px 16px;
+    background: #fffbeb;
+    border: 1px solid #fde68a;
+}
+
+.login-notice-title {
+    font-weight: 600;
+    color: #92400e;
+    margin-bottom: 6px;
+}
+
+.login-notice-text {
+    font-size: 13px;
+    line-height: 1.7;
+    color: #92400e;
+}
+
+.login-card {
+    width: 380px;
+    max-width: 100%;
+    padding: 36px 32px;
+}
+
+.login-logo {
+    text-align: center;
+    font-size: 28px;
+    margin-bottom: 8px;
+}
+
+.login-title {
+    font-size: 18px;
+    text-align: center;
+    margin-bottom: 28px;
+}
+
+.login-error {
+    min-height: 20px;
+    margin: 4px 0 10px;
+    font-size: 13px;
+    color: var(--color-danger);
+    text-align: center;
+}
+
+/* ============================================================
+   后台框架布局：左侧固定侧边栏 + 右侧内容区
+   ============================================================ */
+.layout {
+    display: flex;
+    min-height: 100vh;
+}
+
+/* ---------- 侧边栏 ---------- */
+.sidebar {
+    width: var(--sidebar-width);
+    flex-shrink: 0;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    background: var(--sidebar-bg);
+    color: #fff;
+    overflow-y: auto;
+}
+
+.sidebar-logo {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 18px 20px;
+    font-size: 16px;
+    font-weight: 600;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    white-space: nowrap;
+}
+
+.sidebar-nav {
+    flex: 1;
+    padding: 12px 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 11px 20px;
+    color: rgba(255, 255, 255, 0.72);
+    font-size: 14px;
+    white-space: nowrap;
+    transition: background 0.15s, color 0.15s;
+}
+
+.nav-item:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: #fff;
+}
+
+.nav-item.active {
+    background: var(--color-primary);
+    color: #fff;
+}
+
+.nav-icon {
+    font-size: 16px;
+    line-height: 1;
+}
+
+.sidebar-footer {
+    padding: 14px 20px;
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.35);
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* ---------- 主区域 ---------- */
+.main {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+/* 顶部栏：当前页标题 + 用户名 + 退出按钮 */
+.topbar {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    height: 56px;
+    padding: 0 24px;
+    background: var(--color-card);
+    border-bottom: 1px solid var(--color-border);
+}
+
+.topbar-title {
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.topbar-user {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.topbar-username {
+    color: var(--color-text-secondary);
+    font-size: 13px;
+}
+
+/* 页面内容容器（路由渲染点） */
+.content {
+    flex: 1;
+    padding: 24px;
+    position: relative;
+}
+
+/* ============================================================
+   页面通用：页头 / 工具栏
+   ============================================================ */
+.page-header {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 18px;
+}
+
+.page-header h2 {
+    font-size: 19px;
+}
+
+.page-tip {
+    color: var(--color-text-secondary);
+    font-size: 13px;
+}
+
+.toolbar {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 16px;
+}
+
+.toolbar-right {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+/* ============================================================
+   卡片
+   ============================================================ */
+.card {
+    background: var(--color-card);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 20px;
+}
+
+.card + .card {
+    margin-top: 16px;
+}
+
+.card-title {
+    font-size: 15px;
+    margin-bottom: 14px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.card-title .card-tip {
+    font-size: 12px;
+    font-weight: 400;
+    color: var(--color-text-secondary);
+    margin-left: 8px;
+}
+
+/* ============================================================
+   表单
+   ============================================================ */
+.form-group {
+    margin-bottom: 16px;
+}
+
+.form-label {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.form-label .required {
+    color: var(--color-danger);
+    margin-left: 2px;
+}
+
+.form-input,
+.form-textarea,
+.form-select {
+    display: block;
+    width: 100%;
+    padding: 8px 12px;
+    font-size: 14px;
+    font-family: inherit;
+    color: var(--color-text);
+    background: #fff;
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.form-textarea {
+    min-height: 96px;
+    resize: vertical;
+    line-height: 1.6;
+}
+
+.form-input:focus,
+.form-textarea:focus,
+.form-select:focus {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12);
+}
+
+.form-input:disabled,
+.form-textarea:disabled,
+.form-select:disabled {
+    background: var(--color-bg);
+    color: var(--color-text-secondary);
+    cursor: not-allowed;
+}
+
+.form-hint {
+    margin-top: 6px;
+    font-size: 12px;
+    color: var(--color-text-secondary);
+}
+
+.form-error {
+    margin-top: 6px;
+    font-size: 12px;
+    color: var(--color-danger);
+}
+
+.form-row {
+    display: flex;
+    gap: 16px;
+}
+
+.form-row .form-group {
+    flex: 1;
+    min-width: 0;
+}
+
+.form-footer {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+/* ============================================================
+   按钮
+   ============================================================ */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 8px 16px;
+    font-size: 14px;
+    font-family: inherit;
+    line-height: 1.4;
+    color: var(--color-text);
+    background: #fff;
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.15s, border-color 0.15s, color 0.15s, opacity 0.15s;
+}
+
+.btn:hover {
+    background: var(--color-bg);
+    border-color: #d1d5db;
+}
+
+.btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+.btn-primary {
+    color: #fff;
+    background: var(--color-primary);
+    border-color: var(--color-primary);
+}
+
+.btn-primary:hover {
+    color: #fff;
+    background: var(--color-primary-hover);
+    border-color: var(--color-primary-hover);
+}
+
+.btn-danger {
+    color: #fff;
+    background: var(--color-danger);
+    border-color: var(--color-danger);
+}
+
+.btn-danger:hover {
+    color: #fff;
+    background: #b91c1c;
+    border-color: #b91c1c;
+}
+
+.btn-success {
+    color: #fff;
+    background: var(--color-success);
+    border-color: var(--color-success);
+}
+
+.btn-success:hover {
+    color: #fff;
+    background: #15803d;
+    border-color: #15803d;
+}
+
+.btn-sm {
+    padding: 4px 10px;
+    font-size: 13px;
+    border-radius: 5px;
+}
+
+.btn-block {
+    display: flex;
+    width: 100%;
+}
+
+/* ============================================================
+   表格
+   ============================================================ */
+.table-wrap {
+    overflow-x: auto;
+}
+
+.table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+}
+
+.table th,
+.table td {
+    padding: 10px 12px;
+    text-align: left;
+    border-bottom: 1px solid var(--color-border);
+    vertical-align: middle;
+}
+
+.table th {
+    background: #f9fafb;
+    color: var(--color-text-secondary);
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.table tbody tr:hover {
+    background: #f9fafb;
+}
+
+.table .cell-actions {
+    white-space: nowrap;
+    display: flex;
+    gap: 6px;
+}
+
+.table .cell-ellipsis {
+    max-width: 240px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* ============================================================
+   徽章
+   ============================================================ */
+.badge {
+    display: inline-block;
+    padding: 1px 9px;
+    font-size: 12px;
+    line-height: 1.7;
+    border-radius: 999px;
+    background: #eef2ff;
+    color: var(--color-primary);
+    white-space: nowrap;
+}
+
+.badge-success {
+    background: #dcfce7;
+    color: #15803d;
+}
+
+.badge-danger {
+    background: #fee2e2;
+    color: #b91c1c;
+}
+
+.badge-warning {
+    background: #fef3c7;
+    color: #b45309;
+}
+
+.badge-gray {
+    background: #f3f4f6;
+    color: #4b5563;
+}
+
+/* ============================================================
+   开关（样式化 checkbox）
+   用法：<label class="toggle"><input type="checkbox"><span class="toggle-track"></span></label>
+   ============================================================ */
+.toggle {
+    position: relative;
+    display: inline-block;
+    width: 40px;
+    height: 22px;
+    flex-shrink: 0;
+    vertical-align: middle;
+}
+
+.toggle input {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    opacity: 0;
+    cursor: pointer;
+    z-index: 1;
+}
+
+.toggle-track {
+    position: absolute;
+    inset: 0;
+    background: #d1d5db;
+    border-radius: 999px;
+    transition: background 0.2s;
+    pointer-events: none;
+}
+
+.toggle-track::after {
+    content: '';
+    position: absolute;
+    left: 2px;
+    top: 2px;
+    width: 18px;
+    height: 18px;
+    background: #fff;
+    border-radius: 50%;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+    transition: transform 0.2s;
+}
+
+.toggle input:checked + .toggle-track {
+    background: var(--color-primary);
+}
+
+.toggle input:checked + .toggle-track::after {
+    transform: translateX(18px);
+}
+
+.toggle input:disabled + .toggle-track {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+/* ============================================================
+   Toast 右上角浮层（多条堆叠，淡入淡出）
+   ============================================================ */
+.toast-container {
+    position: fixed;
+    top: 16px;
+    right: 16px;
+    z-index: 1200;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    pointer-events: none;
+}
+
+.toast {
+    min-width: 200px;
+    max-width: 360px;
+    padding: 10px 16px;
+    background: #fff;
+    border: 1px solid var(--color-border);
+    border-left: 4px solid var(--color-primary);
+    border-radius: 6px;
+    box-shadow: var(--shadow-lg);
+    font-size: 14px;
+    opacity: 0;
+    transform: translateX(24px);
+    transition: opacity 0.3s, transform 0.3s;
+}
+
+.toast.show {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+.toast-success {
+    border-left-color: var(--color-success);
+}
+
+.toast-error {
+    border-left-color: var(--color-danger);
+}
+
+.toast-warning {
+    border-left-color: var(--color-warning);
+}
+
+/* ============================================================
+   模态框
+   ============================================================ */
+.modal-mask {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    background: rgba(17, 24, 39, 0.45);
+    animation: maskIn 0.18s ease-out;
+}
+
+.modal {
+    width: 420px;
+    max-width: 100%;
+    max-height: calc(100vh - 64px);
+    overflow-y: auto;
+    padding: 22px;
+    background: #fff;
+    border-radius: 10px;
+    box-shadow: var(--shadow-lg);
+    animation: modalIn 0.18s ease-out;
+}
+
+.modal-title {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 10px;
+}
+
+.modal-title-danger {
+    color: var(--color-danger);
+}
+
+.modal-body {
+    font-size: 14px;
+    color: var(--color-text-secondary);
+    margin-bottom: 20px;
+    word-break: break-word;
+}
+
+.modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+@keyframes maskIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes modalIn {
+    from {
+        opacity: 0;
+        transform: translateY(-12px) scale(0.97);
+    }
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+/* ============================================================
+   分页条
+   ============================================================ */
+.pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 16px;
+}
+
+.pagination button {
+    min-width: 32px;
+    height: 32px;
+    padding: 0 10px;
+    font-size: 13px;
+    font-family: inherit;
+    color: var(--color-text);
+    background: #fff;
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+}
+
+.pagination button:hover:not(:disabled) {
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+}
+
+.pagination button.current {
+    background: var(--color-primary);
+    border-color: var(--color-primary);
+    color: #fff;
+}
+
+.pagination button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.pagination-info {
+    margin-left: 10px;
+    font-size: 13px;
+    color: var(--color-text-secondary);
+}
+
+/* ============================================================
+   空状态 / 加载中
+   ============================================================ */
+.empty {
+    padding: 48px 16px;
+    text-align: center;
+    color: var(--color-text-secondary);
+}
+
+.empty-icon {
+    font-size: 34px;
+    margin-bottom: 8px;
+}
+
+.empty-text {
+    font-size: 14px;
+}
+
+/* 加载指示（showLoading 会绝对定位铺满其容器） */
+.loading {
+    position: absolute;
+    inset: 0;
+    z-index: 30;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    background: rgba(255, 255, 255, 0.7);
+    font-size: 14px;
+    color: var(--color-text-secondary);
+}
+
+.loading-spinner {
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--color-border);
+    border-top-color: var(--color-primary);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* ============================================================
+   富文本编辑器容器（wangEditor 挂载点，Task 9 使用）
+   结构：<div class="editor-wrap"><div id="editor-toolbar"></div><div id="editor-container"></div></div>
+   ============================================================ */
+.editor-wrap {
+    height: 400px;
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    background: #fff;
+}
+
+.editor-wrap .editor-toolbar {
+    border-bottom: 1px solid var(--color-border);
+}
+
+.editor-wrap .editor-container {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+}
+
+/* ============================================================
+   图片预览 / 上传按钮组
+   ============================================================ */
+.img-preview {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 96px;
+    height: 96px;
+    flex-shrink: 0;
+    object-fit: cover;
+    background: #f9fafb;
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    color: var(--color-text-secondary);
+    font-size: 12px;
+    overflow: hidden;
+}
+
+.upload-group {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.upload-btns {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    justify-content: center;
+}
+
+/* ============================================================
+   响应式：<900px 侧边栏改为顶部横排导航
+   ============================================================ */
+@media (max-width: 900px) {
+    .layout {
+        flex-direction: column;
+    }
+
+    .sidebar {
+        position: static;
+        width: 100%;
+        height: auto;
+    }
+
+    .sidebar-nav {
+        flex-direction: row;
+        flex-wrap: wrap;
+        padding: 6px 8px;
+        gap: 2px;
+    }
+
+    .nav-item {
+        padding: 7px 10px;
+        border-radius: 6px;
+        font-size: 13px;
+    }
+
+    .sidebar-footer {
+        display: none;
+    }
+
+    .topbar {
+        padding: 0 16px;
+    }
+
+    .content {
+        padding: 16px;
+    }
+
+    .form-row {
+        flex-direction: column;
+        gap: 0;
+    }
+}

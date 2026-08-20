@@ -1,3 +1,4 @@
+import { resolve } from 'path';
 import { defineConfig } from 'vite';
 import viteImagemin from 'vite-plugin-imagemin';
 
@@ -39,6 +40,11 @@ export default defineConfig({
       drop: ['debugger']
     },
     rollupOptions: {
+      // 多页入口：主站 + 管理后台
+      input: {
+        main: resolve(__dirname, 'index.html'),
+        admin: resolve(__dirname, 'admin/index.html')
+      },
       output: {
         assetFileNames: 'assets/[name].[hash:8].[ext]',
         chunkFileNames: 'assets/[name].[hash:8].js',

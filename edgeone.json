@@ -1,0 +1,9 @@
+{
+  "schedules": [
+    {
+      "name": "daily-video-sync",
+      "cron": "0 9 * * *",
+      "path": "/api/cron/sync?key=将CRON_KEY环境变量的值填到这里"
+    }
+  ]
+}
