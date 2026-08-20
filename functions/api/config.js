@@ -8,7 +8,7 @@ import { getSiteConfig, getVideoData, getOverrides, mergeVideoList } from '../li
 
 export function onRequestGet(context) {
   return runHandler(async () => {
-    const kv = assertKV();
+    const kv = assertKV(context);
 
     // 并行读取站点配置、视频数据与字段覆盖配置
     const [siteConfig, videoData, overrides] = await Promise.all([
@@ -20,7 +20,14 @@ export function onRequestGet(context) {
     // 合并出前端展示用的视频列表（应用覆盖字段、过滤隐藏、置顶排序）
     const videos = mergeVideoList(videoData, overrides);
 
+    // 公开返回的配置：剔除敏感字段（如 B 站登录态 Cookie）
+    const publicConfig = { ...siteConfig };
+    if (publicConfig.videoSync) {
+      const { biliCookie, ...rest } = publicConfig.videoSync;
+      publicConfig.videoSync = rest;
+    }
+
     // 公开只读接口允许边缘缓存 60 秒
-    return json({ ...siteConfig, videos }, { headers: { 'cache-control': 'public, max-age=60' } });
+    return json({ ...publicConfig, videos }, { headers: { 'cache-control': 'public, max-age=60' } });
   });
 }

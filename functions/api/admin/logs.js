@@ -12,7 +12,7 @@ export function onRequestGet(context) {
     const auth = await requireAuth(context);
     if (!auth.ok) return auth.response;
 
-    const kv = assertKV();
+    const kv = assertKV(context);
     const params = new URL(context.request.url).searchParams;
 
     // page 从 1 开始，非法值回退为 1

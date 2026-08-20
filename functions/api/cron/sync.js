@@ -30,7 +30,7 @@ export async function onRequestGet(context) {
       return error(401, 'UNAUTHORIZED', '无效的定时任务密钥');
     }
 
-    const kv = assertKV();
+    const kv = assertKV(context);
 
     // 节流：距上次成功同步不足 2 小时则跳过
     const syncState = await getSyncState(kv);

@@ -103,7 +103,7 @@ export async function destroySession(kv, request) {
  * @returns {Promise<{ok: boolean, session?: object, response?: Response}>}
  */
 export async function requireAuth(context) {
-  const kv = assertKV();
+  const kv = assertKV(context);
   const session = await getSession(context.request, kv);
   if (!session) {
     return { ok: false, response: error(401, 'UNAUTHORIZED', '请先登录') };

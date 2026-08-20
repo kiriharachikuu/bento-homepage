@@ -530,19 +530,43 @@ async function fetchFromRsshub(mid) {
  * @returns {Promise<{ok: boolean, syncState: object, error?: string}>}
  */
 export async function syncBilibiliVideos(kv, { username = 'unknown', ip = 'unknown', trigger = 'manual' } = {}) {
-  // 读取站点配置，确定 mid 与同步数量上限
+  // 读取站点配置，确定 mid、同步数量上限、以及可选的自定义 Cookie
   const siteConfig = await getSiteConfig(kv);
   const mid = String((siteConfig && siteConfig.videoSync && siteConfig.videoSync.mid) || '28826850');
   let maxCount = Number(siteConfig && siteConfig.videoSync && siteConfig.videoSync.maxCount) || 30;
   if (maxCount < MIN_COUNT) maxCount = MIN_COUNT;
   if (maxCount > MAX_COUNT) maxCount = MAX_COUNT;
+  // 自定义 Cookie：用户在后台粘贴的 SESSDATA 等登录态 cookie，可大幅降低风控概率
+  const customCookie = String(
+    (siteConfig && siteConfig.videoSync && siteConfig.videoSync.biliCookie) || ''
+  ).trim();
 
   // 构建 B 站访问身份（两个 B 站源共用；完全失败时退化为无 cookie 请求）
+  // 有自定义 Cookie 时直接使用，不再自动获取 buvid/ticket（登录态 cookie 本身已含完整身份）
   let session = { cookie: '', imgKey: '', subKey: '' };
-  try {
-    session = await fetchBiliSession();
-  } catch {
-    /* 身份构建失败：继续用空身份请求 */
+  if (customCookie) {
+    session = { cookie: customCookie, imgKey: '', subKey: '' };
+    // 登录态下也需要 wbi key 来算签名，单独取一次
+    try {
+      const nav = await fetchJson('https://api.bilibili.com/x/web-interface/nav', {
+        'user-agent': BROWSER_UA,
+        referer: 'https://www.bilibili.com/',
+        cookie: customCookie
+      });
+      const wbiImg = nav && nav.data && nav.data.wbi_img;
+      if (wbiImg) {
+        session.imgKey = keyFromImgUrl(wbiImg.img_url);
+        session.subKey = keyFromImgUrl(wbiImg.sub_url);
+      }
+    } catch {
+      /* nav 失败不阻断——wbi 源拿不到 key 就跳过，走旧接口或 RSSHub */
+    }
+  } else {
+    try {
+      session = await fetchBiliSession();
+    } catch {
+      /* 身份构建失败：继续用空身份请求 */
+    }
   }
 
   // 依次尝试三个数据源，任一成功即用；记录每次失败原因（源名 + 错误信息）

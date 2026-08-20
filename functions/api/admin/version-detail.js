@@ -12,7 +12,7 @@ export function onRequestGet(context) {
     const auth = await requireAuth(context);
     if (!auth.ok) return auth.response;
 
-    const kv = assertKV();
+    const kv = assertKV(context);
     const id = new URL(context.request.url).searchParams.get('id');
     // 版本不存在时 getVersionDetail 抛出 AppError(404)，由 runHandler 统一转换为错误响应
     return json(await getVersionDetail(kv, id));

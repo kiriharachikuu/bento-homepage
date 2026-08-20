@@ -13,7 +13,7 @@ export function onRequestPost(context) {
     const auth = await requireAuth(context);
     if (!auth.ok) return auth.response;
 
-    const kv = assertKV();
+    const kv = assertKV(context);
     await destroySession(kv, context.request);
     await writeLog(kv, {
       username: auth.session.username,

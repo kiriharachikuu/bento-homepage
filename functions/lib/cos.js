@@ -100,7 +100,7 @@ function normalizeSignEntries(obj) {
  * @param {object} options.config getCosConfig 返回的配置
  * @returns {Promise<string>} 'q-sign-algorithm=sha1&q-ak=...&q-signature=...' 形式的签名字段串
  */
-async function signRequest({ method, pathname, params = {}, headers = {}, expiresSeconds = 600, config }) {
+export async function signRequest({ method, pathname, params = {}, headers = {}, expiresSeconds = 600, config }) {
   const methodLower = String(method || 'get').toLowerCase();
 
   // 签名有效时间窗口：起始时间回拨 60 秒以容忍少量时钟偏差
@@ -209,6 +209,130 @@ function decodeXmlEntities(str) {
 function extractTag(block, tag) {
   const match = block.match(new RegExp('<' + tag + '>([\\s\\S]*?)</' + tag + '>'));
   return match ? match[1] : '';
+}
+
+/**
+ * 通用请求发送：带超时、错误统一为 AppError
+ * @param {string} url
+ * @param {object} init fetch init
+ * @param {string} [errPrefix='COS 接口请求失败']
+ * @returns {Promise<Response>}
+ */
+async function cosFetch(url, init, errPrefix = 'COS 接口请求失败') {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 15000);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } catch (err) {
+    throw new AppError(
+      502,
+      'COS_ERROR',
+      errPrefix + ': ' + (err && err.message ? err.message : String(err))
+    );
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/**
+ * 读取对象的文本内容（GetObject）
+ * 对象不存在时返回 null（404 / NoSuchKey）
+ * @param {object} config
+ * @param {string} key 对象键
+ * @returns {Promise<string|null>}
+ */
+export async function cosGetText(config, key) {
+  const path = '/' + String(key || '').replace(/^\/+/, '');
+  const authorization = await authorizationHeader({ method: 'GET', pathname: path, config });
+  const url = `https://${cosHost(config)}/${encodeUriPath(key)}`;
+  const res = await cosFetch(url, { method: 'GET', headers: { authorization } });
+  if (res.status === 404) return null;
+  if (res.status !== 200) {
+    throw new AppError(502, 'COS_ERROR', `COS GetObject 失败：HTTP ${res.status}`);
+  }
+  return res.text();
+}
+
+/**
+ * 写入对象（PutObject）
+ * @param {object} config
+ * @param {string} key 对象键
+ * @param {string} body 文本内容
+ */
+export async function cosPutText(config, key, body) {
+  const path = '/' + String(key || '').replace(/^\/+/, '');
+  const contentLength = String(new TextEncoder().encode(String(body || '')).length);
+  const method = 'PUT';
+  const host = cosHost(config);
+  const auth = await signRequest({
+    method,
+    pathname: path,
+    params: {},
+    headers: { host, 'content-length': contentLength },
+    expiresSeconds: 600,
+    config
+  });
+  const url = `https://${host}/${encodeUriPath(key)}`;
+  const res = await cosFetch(
+    url,
+    {
+      method,
+      headers: { authorization: auth, 'content-length': contentLength },
+      body: String(body || '')
+    },
+    'COS PutObject 失败'
+  );
+  if (res.status !== 200) {
+    throw new AppError(502, 'COS_ERROR', `COS PutObject 失败：HTTP ${res.status}`);
+  }
+}
+
+/**
+ * 删除对象（DeleteObject），对象不存在也不报错
+ * @param {object} config
+ * @param {string} key 对象键
+ */
+export async function cosDeleteObject(config, key) {
+  const path = '/' + String(key || '').replace(/^\/+/, '');
+  const authorization = await authorizationHeader({ method: 'DELETE', pathname: path, config });
+  const url = `https://${cosHost(config)}/${encodeUriPath(key)}`;
+  const res = await cosFetch(url, { method: 'DELETE', headers: { authorization } }, 'COS DeleteObject 失败');
+  // 204 / 200 都算成功；404 当不存在也不抛错
+  if (res.status !== 200 && res.status !== 204 && res.status !== 404) {
+    throw new AppError(502, 'COS_ERROR', `COS DeleteObject 失败：HTTP ${res.status}`);
+  }
+}
+
+/**
+ * 列取指定前缀的对象（List Objects V1，XML 解析）
+ * @param {object} config
+ * @param {object} [options]
+ * @param {string} [options.prefix=''] 对象前缀
+ * @param {number} [options.maxKeys=1000] 最大条数
+ * @returns {Promise<Array<{key: string, lastModified: string, size: number}>>}
+ */
+export async function cosList(config, { prefix = '', maxKeys = 1000 } = {}) {
+  const authorization = await authorizationHeader({ method: 'GET', pathname: '/', config });
+  const url = `https://${cosHost(config)}/?prefix=${camSafeUrlEncode(prefix)}&max-keys=${maxKeys}`;
+  const res = await cosFetch(url, { method: 'GET', headers: { authorization } }, 'COS ListObjects 失败');
+  if (res.status !== 200) {
+    throw new AppError(502, 'COS_ERROR', `COS ListObjects 失败：HTTP ${res.status}`);
+  }
+  const xml = await res.text();
+  const items = [];
+  const contentsRe = /<Contents>([\s\S]*?)<\/Contents>/g;
+  let match;
+  while ((match = contentsRe.exec(xml)) !== null) {
+    const block = match[1];
+    const key = decodeXmlEntities(extractTag(block, 'Key'));
+    if (!key) continue;
+    items.push({
+      key,
+      lastModified: decodeXmlEntities(extractTag(block, 'LastModified')),
+      size: Number(extractTag(block, 'Size')) || 0
+    });
+  }
+  return items;
 }
 
 /**

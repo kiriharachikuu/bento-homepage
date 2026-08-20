@@ -37,7 +37,7 @@ export function onRequestPost(context) {
       return error(403, 'CSRF', '缺少必要的请求头');
     }
 
-    const kv = assertKV();
+    const kv = assertKV(context);
 
     // 解析请求体
     let body;

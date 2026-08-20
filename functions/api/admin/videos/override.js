@@ -17,7 +17,7 @@ export async function onRequestPost(context) {
     const auth = await requireAuth(context);
     if (!auth.ok) return auth.response;
 
-    const kv = assertKV();
+    const kv = assertKV(context);
 
     let body;
     try {

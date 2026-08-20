@@ -135,8 +135,8 @@ export function render(container) {
     let data = null;
     /** 合并后的完整条目列表（含隐藏项） */
     let items = [];
-    /** 同步设置输入值（mid / maxCount，均为字符串） */
-    const settings = { mid: '', maxCount: '' };
+    /** 同步设置输入值（均为字符串） */
+    const settings = { mid: '', maxCount: '', biliCookie: '' };
     /** 来源筛选：'all' | 'sync' | 'manual' */
     let sourceFilter = 'all';
     /** 是否显示已隐藏条目 */
@@ -224,6 +224,17 @@ export function render(container) {
                            value="${escapeHtml(settings.maxCount)}">
                 </div>
                 <button type="button" class="btn btn-sm" data-role="save-settings">保存设置</button>
+            </div>
+            <div class="form-group" style="margin:14px 0 0;">
+                <label class="form-label" for="video-bili-cookie">B 站 Cookie（可选，大幅提高同步成功率）</label>
+                <textarea class="form-input" id="video-bili-cookie" rows="3"
+                    placeholder="浏览器 F12 → Application → Cookies → bilibili.com → 复制全部 cookie 值，格式如 SESSDATA=xxx; bili_jct=yyy; ...&#10;留空则使用匿名身份（风控概率高，可能同步失败）"
+                    style="font-family:Consolas,Menlo,monospace;font-size:12px;">${escapeHtml(settings.biliCookie)}</textarea>
+                <div class="form-hint" style="margin-top:6px;">
+                    登录态 Cookie 可绕过大部分风控，建议配置。Cookie 安全存储于服务端，不会返回到前端。
+                    过期后（通常 2-3 个月）重新粘贴即可。
+                    <button type="button" class="link-btn" data-role="clear-cookie" style="margin-left:8px;">清空 Cookie</button>
+                </div>
             </div>
             <div class="form-hint" style="margin-top:8px;">修改将在下次同步时生效</div>
         </div>`;
@@ -386,6 +397,22 @@ ${listCardHtml()}`;
                 guard.setDirty(true);
             });
         }
+        const cookieInput = container.querySelector('#video-bili-cookie');
+        if (cookieInput) {
+            cookieInput.addEventListener('input', () => {
+                settings.biliCookie = cookieInput.value;
+                guard.setDirty(true);
+            });
+        }
+        const clearCookieBtn = container.querySelector('[data-role="clear-cookie"]');
+        if (clearCookieBtn) {
+            clearCookieBtn.addEventListener('click', () => {
+                settings.biliCookie = '';
+                if (cookieInput) cookieInput.value = '';
+                guard.setDirty(true);
+                toast('已清空 Cookie（记得点保存设置生效）', 'info');
+            });
+        }
 
         const saveBtn = container.querySelector('[data-role="save-settings"]');
         if (saveBtn) saveBtn.addEventListener('click', handleSaveSettings);
@@ -447,21 +474,18 @@ ${listCardHtml()}`;
         renderPage();
     }
 
-    /** 首次加载：并行拉取视频数据与站点配置（同步设置） */
+    /** 首次加载：拉取视频数据（含同步设置 videoSync） */
     async function load() {
         renderSkeleton();
         showLoading(container, '正在加载视频数据…');
         try {
-            const [videos, config] = await Promise.all([
-                get('/api/admin/videos'),
-                get('/api/config')
-            ]);
+            const videos = await get('/api/admin/videos');
             data = videos;
             items = buildFullList(data);
             loadError = null;
 
-            // 从公开配置读取 videoSync 设置，回填同步设置表单
-            const videoSync = config && config.videoSync;
+            // 从 admin 接口读取 videoSync 设置，回填同步设置表单
+            const videoSync = data && data.videoSync;
             if (videoSync) {
                 settings.mid =
                     videoSync.mid === null || videoSync.mid === undefined ? '' : String(videoSync.mid);
@@ -469,6 +493,10 @@ ${listCardHtml()}`;
                     videoSync.maxCount === null || videoSync.maxCount === undefined
                         ? ''
                         : String(videoSync.maxCount);
+                settings.biliCookie =
+                    videoSync.biliCookie === null || videoSync.biliCookie === undefined
+                        ? ''
+                        : String(videoSync.biliCookie);
             }
             renderPage();
         } catch (err) {
@@ -524,10 +552,11 @@ ${listCardHtml()}`;
         if (retryBtn) retryBtn.disabled = syncing;
     }
 
-    /** 保存同步设置（mid / maxCount）：校验 -> 二次确认 -> save-config */
+    /** 保存同步设置：校验 -> 二次确认 -> save-config */
     async function handleSaveSettings() {
         const mid = String(settings.mid || '').trim();
         const maxCount = Number(settings.maxCount);
+        const biliCookie = String(settings.biliCookie || '').trim();
 
         if (!/^\d+$/.test(mid)) {
             toast('请输入有效的 B 站 UID（纯数字）', 'error');
@@ -538,16 +567,17 @@ ${listCardHtml()}`;
             return;
         }
 
+        const cookieNote = biliCookie ? '（已配置 B 站 Cookie）' : '（未配置 B 站 Cookie，可能同步失败）';
         const ok = await confirmDialog({
             title: '保存同步设置',
-            message: `将保存：B站 UID ${mid}，最大同步 ${maxCount} 条。修改在下次同步时生效，确定保存吗？`,
+            message: `将保存：B站 UID ${mid}，最大同步 ${maxCount} 条${cookieNote}。修改在下次同步时生效，确定保存吗？`,
             confirmText: '保存'
         });
         if (!ok) return;
 
         try {
             await post('/api/admin/save-config', {
-                modules: { videoSync: { mid, maxCount } }
+                modules: { videoSync: { mid, maxCount, biliCookie } }
             });
             guard.setDirty(false);
             toast('同步设置已保存', 'success');

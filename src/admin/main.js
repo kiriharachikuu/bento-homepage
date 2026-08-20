@@ -295,11 +295,13 @@ window.addEventListener('hashchange', handleRouteChange);
     } catch (err) {
         // 未登录或网络异常：渲染登录视图（unauthorizedHandler 可能已渲染，幂等）
         if (view !== 'login') {
-            // KV 未绑定时在登录页顶部给出部署指引，避免首次部署排障困难
-            const notice =
-                err && err.code === 'KV_NOT_BOUND'
-                    ? 'EdgeOne KV 存储尚未绑定：请在 EdgeOne Pages 控制台开通 KV、创建命名空间，并以运行时变量名 <b>CMS_KV</b> 绑定到本项目，然后重新部署（详见 README「部署配置」章节）。'
-                    : '';
+            // 存储未就绪时在登录页顶部给出部署指引，避免首次部署排障困难
+            let notice = '';
+            if (err && err.code === 'NO_STORAGE') {
+                notice = '未配置可用存储：请在 EdgeOne Pages 控制台开通 KV 存储并以运行时变量名 <b>CMS_KV</b> 绑定，或配置 <b>COS_SECRET_ID / COS_SECRET_KEY</b> 环境变量使用 COS 作为存储（详见 README「部署配置」章节）。';
+            } else if (err && err.code === 'KV_NOT_BOUND') {
+                notice = 'EdgeOne KV 存储尚未绑定：请在 EdgeOne Pages 控制台开通 KV、创建命名空间，并以运行时变量名 <b>CMS_KV</b> 绑定到本项目，然后重新部署。';
+            }
             renderLogin(notice);
         }
     }

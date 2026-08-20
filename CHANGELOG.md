@@ -5,6 +5,103 @@
 
 ---
 
+## 2026-08-20 ｜ B 站视频同步自定义 Cookie 支持（方案 A）
+
+### 背景
+
+纯服务端抓取 B 站空间视频会被风控拦截（-352，需要浏览器行为指纹），三级容错链在本地 IP 下全挂。部署到 EdgeOne 后成功率也无法保证。
+
+### 方案
+
+后台新增「B 站 Cookie」配置项，用户从浏览器复制登录态 Cookie 粘贴进去。带登录态请求 B 站接口基本不受风控影响，同步成功率接近 100%。Cookie 每 2-3 个月过期一次，重新粘贴即可。
+
+同时作为方案 C（Python 脚本备用）的前置准备：
+- Cookie 保存在 `site_config.videoSync.biliCookie`，同步引擎直接读取
+- 对外的 `/api/admin/videos/sync` 端点可被外部脚本调用（需管理员登录态 cookie 或 API key 留待后续扩展）
+
+### 改动文件
+
+| 文件 | 改动 |
+| --- | --- |
+| `functions/lib/bilibili.js` | syncBilibiliVideos 读取 `videoSync.biliCookie`；有自定义 Cookie 时直接使用并从 nav 接口取 wbi key，不再走 buvid/ticket 自动获取 |
+| `functions/api/config.js` | 公开配置返回时**剔除 `biliCookie` 字段**，避免登录态泄露 |
+| `functions/api/admin/videos.js` | 登录态下返回 `videoSync` 完整配置（含 biliCookie），供后台回填表单 |
+| `src/admin/pages/videos.js` | 同步设置区新增 B 站 Cookie textarea + 清空按钮；保存时一并提交；设置读取来源改为 admin 接口（不再请求公开 `/api/config`） |
+
+### 安全设计
+
+- **B 站 Cookie 永远不在公开接口返回**：`/api/config` 脱敏处理，只有登录后通过 `/api/admin/videos` 才能读到
+- Cookie 以明文存储在 KV/COS 中——因为需要原封不动发给 B 站，不能哈希。风险可控：只有管理员账号能读写，管理员本身就知道自己的 B 站 Cookie
+- 注意：版本快照里也会包含 biliCookie，回滚时同步回滚
+
+### 验证
+
+- 签名算法已通过反算验证（与浏览器生成的 `w_rid` 完全一致）
+- 风控拦截是 B 站策略问题，非代码 bug，自定义 Cookie 可绕过后端成功率应接近 100%
+- 需部署后用真实 Cookie 实测确认
+
+### 配套：外部视频导入接口 + Python 脚本（方案 C 备用）
+
+- 新增 `POST /api/admin/videos/import` 端点：接受外部传入的视频列表，直接覆盖 synced 列表，自动生成版本快照和操作日志
+  - 路径：`functions/api/admin/videos/import.js`
+  - 鉴权：需要管理员会话
+  - 单条字段异常自动过滤（跳过无效条目，不整体失败）
+  - 限制：单次最多 200 条
+- 新增 `scripts/bili_sync_import.py` Python 脚本模板
+  - 完整的 B 站 wbi 签名抓取逻辑（和 CMS 引擎同源算法）
+  - CMS 登录 + 导入一键流程
+  - 只需修改 CONFIG 区域的 5 个参数即可使用
+  - 依赖：仅需 `requests` 库
+
+---
+
+## 2026-08-20 ｜ 双存储共存（KV + COS 自动切换）
+
+### 背景
+
+EdgeOne KV 存储申请未通过，需要备用方案。选择用已有的腾讯云 COS 桶作为 CMS 存储后端，并设计成**双模式共存 + 自动检测**，KV 申请通过后绑定即可自动切换，代码零改动。
+
+### 设计
+
+- **检测优先级**：有 `CMS_KV` 运行时变量 → 用 EdgeOne KV；没有 → 检查 `COS_SECRET_ID/KEY` 环境变量 → 有则用 COS；都没有抛 `NO_STORAGE` 错误。
+- **抽象层**：`functions/lib/kv.js` 从直接操作 EdgeOne KV 的薄封装升级为存储抽象层，对外接口不变（`getKV/assertKV/kvGetJson/kvPutJson/kvDelete`），调用方零感知。
+- **COS 数据前缀**：所有 CMS 数据存在桶内 `cms/` 前缀下，与 `uploads/` 等业务数据物理隔离。
+- **数据独立性**：两种存储的数据互不相通，切换后各是各的（设计取舍：避免双向同步的一致性问题，数据量极小可手动迁移）。
+
+### 改动文件
+
+| 文件 | 改动 |
+| --- | --- |
+| `functions/lib/kv.js` | 重写：KV/COS 双模式抽象层；新增 `getStorage/assertStorage`；旧 API 兼容（`getKV/assertKV` 现在接受 context 参数） |
+| `functions/lib/cos.js` | 新增：`cosGetText`、`cosPutText`、`cosDeleteObject`、`cosList` 四个对象操作方法；抽取 `cosFetch` 公共超时封装 |
+| `functions/api/*.js`（14 个端点文件） | `assertKV()` → `assertKV(context)`，传递上下文以读取 COS 环境变量 |
+| `functions/lib/session.js` | 同：`requireAuth` 中的 `assertKV()` → `assertKV(context)` |
+| `src/admin/main.js` | 登录页部署指引文案兼容新的 `NO_STORAGE` 错误码（同时保留旧 `KV_NOT_BOUND` 兼容） |
+| `README.md` | 部署章节新增「双存储方案」说明，常见问题新增 2 条（NO_STORAGE 报错、COS 切 KV 方法），环境变量表 COS 密钥改为「方案 B 必填」 |
+| `test-kv-cos.mjs`（新增） | COS 模式 KV 抽象层真实联调测试（需配置 COS 环境变量运行） |
+
+### 调用方兼容性
+
+调用方式仍是 `const kv = assertKV(context); await kvGetJson(kv, key)` 这套。`kv` 从"EdgeOne KV 绑定对象"变成了 `{ type, handle }` 不透明句柄，但所有调用方都只做"透传给 kvGetJson 等函数"这一件事，从不直接操作 kv 对象，因此完全兼容。
+
+### 遗留 / 注意事项
+
+- COS 模式下读写延迟约 50-200ms（对比 KV 毫秒级），个人站低频场景无感；前台配置接口有 60s 边缘缓存，实际体验差距更小。
+- 索引（version_index / log_index）仍是"读-改-写"非原子，单管理员场景风险可接受。
+- `test-kv-cos.mjs` 是可选的验证脚本，跑之前需先在环境变量设置 `COS_SECRET_ID` / `COS_SECRET_KEY`。
+
+### 修复记录（同轮迭代内）
+
+**修复 1：cosGetText / cosPutText / cosDeleteObject 的 URL 缺少前导斜杠**
+
+- **问题**：三个对象操作函数的 URL 写成 `` `${host}${encodeUriPath(key)}` ``，host 与 path 之间没有 `/`，导致请求发到形如 `https://chikuu-1252656027.cos.ap-nanjing.myqcloud.comcms/xxx` 的错误地址，Node.js fetch 直接抛 `fetch failed`。
+- **根因**：写代码时照搬了 `cosList` 的 URL 拼接思路（list 是 `/?prefix=...` 有 `/`），但忘了给对象 key 的路径也加前导 `/`。
+- **改动**：`functions/lib/cos.js` 三处 URL 拼接补 `/`：`cosGetText`（L247）、`cosPutText`（L275）、`cosDeleteObject`（L298）。
+- **验证**：`test-kv-cos.mjs` 13/13 通过（存储检测 / 写入 / 读取字段校验 / 不存在返回 null / 删除 / null 句柄边界）。
+- **额外改动**：`signRequest` 从内部函数改为 `export`，方便后续调试和复用。
+
+---
+
 ## 2026-08-19（晚） ｜ 后台白屏修复
 
 ### 修复 9：访问 /admin 白屏（严重度：高）

@@ -7,18 +7,19 @@
 import { json, runHandler } from '../../lib/response.js';
 import { assertKV } from '../../lib/kv.js';
 import { requireAuth } from '../../lib/session.js';
-import { getVideoData, getOverrides, getSyncState, mergeVideoList } from '../../lib/videos.js';
+import { getVideoData, getOverrides, getSyncState, mergeVideoList, getSiteConfig } from '../../lib/videos.js';
 
 export async function onRequestGet(context) {
   return runHandler(async () => {
     const auth = await requireAuth(context);
     if (!auth.ok) return auth.response;
 
-    const kv = assertKV();
-    const [videoData, overrides, syncState] = await Promise.all([
+    const kv = assertKV(context);
+    const [videoData, overrides, syncState, siteConfig] = await Promise.all([
       getVideoData(kv),
       getOverrides(kv),
-      getSyncState(kv)
+      getSyncState(kv),
+      getSiteConfig(kv)
     ]);
 
     return json({
@@ -26,7 +27,8 @@ export async function onRequestGet(context) {
       synced: videoData.synced,
       overrides,
       display: mergeVideoList(videoData, overrides),
-      syncState
+      syncState,
+      videoSync: siteConfig && siteConfig.videoSync ? siteConfig.videoSync : null
     });
   });
 }

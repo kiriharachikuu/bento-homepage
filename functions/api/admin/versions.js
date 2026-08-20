@@ -12,7 +12,7 @@ export function onRequestGet(context) {
     const auth = await requireAuth(context);
     if (!auth.ok) return auth.response;
 
-    const kv = assertKV();
+    const kv = assertKV(context);
     return json({ versions: await getVersionList(kv) });
   });
 }
