@@ -5,6 +5,44 @@
 
 ---
 
+## 2026-08-19（晚） ｜ 后台白屏修复
+
+### 修复 9：访问 /admin 白屏（严重度：高）
+
+**问题**：访问 `/admin`（或 `/admin/`）页面纯白，无任何内容，控制台也无报错。
+
+**根因**（浏览器实测定位，Playwright 抓取渲染结果与控制台）：`src/admin/main.js` 中视图状态变量初始值为 `let view = 'login'`，而启动探测的失败兜底逻辑是：
+
+```js
+} catch (err) {
+    if (view !== 'login') {   // 永远为 false！
+        renderLogin(notice);
+    }
+}
+```
+
+该守卫的本意是「401 时 unauthorizedHandler 已渲染过登录页则跳过重复渲染」，但初始值 `'login'` 使条件恒为 false，`renderLogin` 成为死代码。触发链路：
+
+- `GET /api/auth/me` 探测失败且**不是** 401-UNAUTHORIZED（本地 dev 返回 200+HTML、KV 未绑定返回 500、functions 路由 404）时，错误进入 boot 的 catch，登录页不渲染 -> 白屏；
+- 只有正常部署且会话过期（401 + UNAUTHORIZED 业务码）时，api.js 会先触发 unauthorizedHandler 渲染登录页，不白屏。这解释了为何此前静态审查未发现：代码路径在「后端正常返回 401」时是通的。
+
+**改动文件与变更点**：
+
+`src/admin/main.js`：
+- `let view = 'login'` 改为 `let view = null`（语义：null = 尚未渲染任何视图），并加注释说明初始值不可改回 `'login'` 的原因。`view` 全部 5 处引用逐一核对：`renderLogin`/`renderAdmin` 赋值正常，`view !== 'admin'` 守卫对 null / 'login' 行为一致，安全。
+
+**顺手修复（dev 体验，同轮验证发现）**：
+
+- `vite.config.js`：新增 `appType: 'mpa'`，关闭 Vite dev 的 SPA history fallback--此前 dev 下访问 `/admin`（无尾斜杠）会被 fallback 重写到前台首页，展示错误的应用；同时新增内联插件 `admin-dir-redirect`，dev 下 `/admin` 301 重定向到 `/admin/`（MPA 模式无目录重定向，对齐生产静态托管行为）。生产构建与 EdgeOne 部署不受影响。
+
+**验证**（Playwright + dev server 实测）：
+- `/admin` -> 301 到 `/admin/` -> 登录卡片渲染（#app 1085 字符）✅
+- `/admin/` -> 登录卡片渲染 ✅
+- `/` -> 前台正常（31581 字符）✅
+- `npm run build` 通过 ✅
+
+---
+
 ## 2026-08-19 ｜ CMS 交付后修复轮（8 项）
 
 ### 背景

@@ -44,8 +44,10 @@ const DEFAULT_PATH = '#/dashboard';
  * ------------------------------------------------------------ */
 /** 当前登录用户名（null 表示未登录 / 登录视图） */
 let currentUser = null;
-/** 当前视图：'login' 登录视图 | 'admin' 后台框架 */
-let view = 'login';
+/** 当前视图：null 初始（未渲染）| 'login' 登录视图 | 'admin' 后台框架
+ *  注意：初始值必须为 null 而非 'login'——boot 失败兜底以 view !== 'login' 判断
+ *  是否需要渲染登录页；若初始化为 'login' 会导致兜底渲染被跳过，页面白屏 */
+let view = null;
 /** 当前已渲染的路由 path（守卫取消时用于还原 hash） */
 let currentPath = null;
 

@@ -3,7 +3,7 @@
     {
       "name": "daily-video-sync",
       "cron": "0 9 * * *",
-      "path": "/api/cron/sync?key=将CRON_KEY环境变量的值填到这里"
+      "path": "/api/cron/sync?key=ad9f902951a1dc8ef3b66f4f6f145e72b29e054959f38c5b"
     }
   ]
 }

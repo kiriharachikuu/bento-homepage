@@ -4,7 +4,24 @@ import viteImagemin from 'vite-plugin-imagemin';
 
 export default defineConfig({
   base: '/',
+  // 双入口 MPA（前台 index.html + 管理后台 admin/index.html）：
+  // 关闭 SPA history fallback，否则 dev 下 /admin 会被重写到前台首页
+  appType: 'mpa',
   plugins: [
+    // dev 下把 /admin 重定向到 /admin/（MPA 模式无目录重定向，与生产环境静态托管行为对齐）
+    {
+      name: 'admin-dir-redirect',
+      configureServer(server) {
+        server.middlewares.use((req, res, next) => {
+          if (req.url === '/admin' || req.url === '/admin?') {
+            res.writeHead(301, { Location: '/admin/' });
+            res.end();
+            return;
+          }
+          next();
+        });
+      }
+    },
     viteImagemin({
       gifsicle: {
         optimizationLevel: 7
