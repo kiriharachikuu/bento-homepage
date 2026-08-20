@@ -2,7 +2,7 @@
  * 会话管理：登录态保持、Cookie 处理、鉴权校验
  */
 import { randomHex } from './crypto.js';
-import { assertKV, kvPutJson, kvDelete } from './kv.js';
+import { assertKV, kvPutJson, kvDelete, kvGetJson } from './kv.js';
 import { error } from './response.js';
 
 /** 会话 Cookie 名称 */
@@ -73,7 +73,7 @@ function parseCookie(request, name) {
 export async function getSession(request, kv) {
   const token = parseCookie(request, SESSION_COOKIE);
   if (!token || !kv) return null;
-  const session = await kv.get(`session_${token}`, { type: 'json' });
+  const session = await kvGetJson(kv, `session_${token}`);
   if (!session) return null;
   // 过期判断
   if (!session.expiresAt || session.expiresAt < Date.now()) {
