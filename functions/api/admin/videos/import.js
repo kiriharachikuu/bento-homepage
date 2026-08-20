@@ -36,6 +36,7 @@ import { requireAuth, getClientIp } from '../../../lib/session.js';
 import { getVideoData, saveVideoData } from '../../../lib/videos.js';
 import { createVersion } from '../../../lib/version.js';
 import { LOG_ACTIONS, writeLog } from '../../../lib/logger.js';
+import { cacheVideoCovers } from '../../../lib/coverCache.js';
 
 /** 单条规范化：缺关键字段的返回 null（过滤掉） */
 function normalizeItem(raw) {
@@ -111,6 +112,14 @@ export async function onRequestPost(context) {
     // 写入 video_data.synced
     const videoData = await getVideoData(kv);
     videoData.synced = items;
+
+    // 封面转存到 COS（失败不阻断导入，仅记录）
+    try {
+      await cacheVideoCovers(videoData.synced, context);
+    } catch (coverErr) {
+      console.warn('[video import] 封面转存失败：', coverErr.message);
+    }
+
     videoData.updatedAt = Date.now();
     await saveVideoData(kv, videoData);
 

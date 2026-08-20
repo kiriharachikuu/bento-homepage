@@ -288,6 +288,41 @@ export async function cosPutText(config, key, body) {
 }
 
 /**
+ * 写入二进制对象（PutObject，支持 ArrayBuffer / Uint8Array）
+ * @param {object} config
+ * @param {string} key 对象键
+ * @param {ArrayBuffer|Uint8Array} buffer 二进制内容
+ * @param {string} [contentType] Content-Type
+ */
+export async function cosPutBuffer(config, key, buffer, contentType = 'application/octet-stream') {
+  const path = '/' + String(key || '').replace(/^\/+/, '');
+  const contentLength = String(buffer ? buffer.byteLength : 0);
+  const method = 'PUT';
+  const host = cosHost(config);
+  const auth = await signRequest({
+    method,
+    pathname: path,
+    params: {},
+    headers: { host, 'content-length': contentLength, 'content-type': contentType },
+    expiresSeconds: 600,
+    config
+  });
+  const url = `https://${host}/${encodeUriPath(key)}`;
+  const res = await cosFetch(
+    url,
+    {
+      method,
+      headers: { authorization: auth, 'content-length': contentLength, 'content-type': contentType },
+      body: buffer
+    },
+    'COS PutObject 失败'
+  );
+  if (res.status !== 200) {
+    throw new AppError(502, 'COS_ERROR', `COS PutObject 失败：HTTP ${res.status}`);
+  }
+}
+
+/**
  * 删除对象（DeleteObject），对象不存在也不报错
  * @param {object} config
  * @param {string} key 对象键

@@ -14,7 +14,7 @@ export async function onRequestPost(context) {
     if (!auth.ok) return auth.response;
 
     const kv = assertKV(context);
-    const result = await syncBilibiliVideos(kv, {
+    const result = await syncBilibiliVideos(context, kv, {
       username: auth.session.username,
       ip: getClientIp(context.request),
       trigger: 'manual'

@@ -5,7 +5,7 @@ import { FollowerCard } from './FollowerCard.js';
 import { MusicPlayerCard } from './MusicPlayerCard.js';
 import { ContactCard } from './ContactCard.js';
 import { VideoCard } from './VideoCard.js';
-import { MoreVideoCard } from './MoreVideoCard.js';
+import { XingToneCard } from './XingToneCard.js';
 import { Modal } from './Modal.js';
 import siteConfig from '../config.js';
 
@@ -82,8 +82,8 @@ export class CardManager {
       this.cards.push(new VideoCard(video, index));
     });
     
-    // 更多视频卡片
-    this.cards.push(new MoreVideoCard());
+    // XingTone 入口卡片
+    this.cards.push(new XingToneCard());
   }
 
   /**

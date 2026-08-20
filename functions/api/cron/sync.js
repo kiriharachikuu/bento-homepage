@@ -48,7 +48,7 @@ export async function onRequestGet(context) {
     }
 
     // 执行同步（定时任务路径不要求登录会话）
-    const result = await syncBilibiliVideos(kv, { username: 'cron', trigger: 'cron' });
+    const result = await syncBilibiliVideos(context, kv, { username: 'cron', trigger: 'cron' });
     return json(result);
   });
 }

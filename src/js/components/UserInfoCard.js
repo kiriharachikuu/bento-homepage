@@ -23,25 +23,25 @@ export class UserInfoCard extends BaseCard {
    */
   getContent() {
     return `
-      <div class="flex items-start mb-20">
-        <div class="relative mr-4">
-          <div class="bg-card rounded-xl w-16 h-16"></div>
-          <div class="absolute inset-0 rounded-xl bg-green-400 opacity-70 pulse-animation">
-            <img src="${siteConfig.user.avatar}" class="w-full h-full rounded-xl object-cover" loading="lazy" />
-          </div>
+      <div class="flex items-center gap-4 flex-shrink-0">
+        <div class="relative w-14 h-14">
+          <div class="absolute inset-0 rounded-xl bg-green-400 opacity-70 pulse-animation"></div>
+          <img src="${siteConfig.user.avatar}" class="relative w-full h-full rounded-xl object-cover" loading="lazy" />
         </div>
-        <div>
-          <h1 class="text-3xl font-bold">${siteConfig.user.name}</h1>
-          <p style="color: var(--gray-600)">${siteConfig.user.title}</p>
+        <div class="min-w-0 flex-1">
+          <h1 class="text-2xl font-bold truncate">${siteConfig.user.name}</h1>
+          <p class="truncate" style="color: var(--gray-600)">${siteConfig.user.title}</p>
         </div>
       </div>
-      <p class="mb-6 leading-relaxed" style="color: var(--gray-700)">
+      <p class="flex-1 min-h-0 leading-relaxed overflow-hidden line-clamp-3" style="color: var(--gray-700)">
         ${siteConfig.user.description}
       </p>
-      <a href="${siteConfig.user.learnMoreLink}" class="btn-23">
-        <span class="text">了解更多</span>
-        <span class="marquee" aria-hidden>More</span>
-      </a>
+      <div class="flex-shrink-0">
+        <a href="${siteConfig.user.learnMoreLink}" class="btn-23">
+          <span class="text">了解更多</span>
+          <span class="marquee" aria-hidden>More</span>
+        </a>
+      </div>
     `;
   }
 }

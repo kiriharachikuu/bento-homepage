@@ -2,8 +2,18 @@
   transition: all 0.3s ease;
   cursor: grab;
   transform: translate(0, 0);
-  /* 为1*1小卡片设置统一高度 */
-  min-height: 300px;
+  /* 卡片统一为正方形（1 格宽 = 1 格高） */
+  aspect-ratio: 1 / 1;
+  overflow: hidden;
+  min-height: 0;
+  height: auto;
+}
+
+/* col-span-2 的卡：宽度占 2 格 + aspect-ratio 1/1 → 高度自动等于 1 格宽，形成 2:1 长方形，无需额外设置 */
+
+/* 音乐播放器卡（row-span-2）：改为 1:2 长方形，高度占 2 格 */
+.draggable-card.card-music {
+  aspect-ratio: 1 / 2;
 }
 
 .draggable-card:hover {

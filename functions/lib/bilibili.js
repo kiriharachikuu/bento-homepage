@@ -10,6 +10,7 @@ import { kvPutJson } from './kv.js';
 import { LOG_ACTIONS, writeLog } from './logger.js';
 import { createVersion } from './version.js';
 import { getSiteConfig, getVideoData, saveVideoData } from './videos.js';
+import { cacheVideoCovers } from './coverCache.js';
 
 /** 浏览器 UA：请求 B 站与 RSSHub 时伪装为浏览器 */
 const BROWSER_UA =
@@ -529,7 +530,7 @@ async function fetchFromRsshub(mid) {
  * @param {string} [options.trigger='manual'] 触发方式（manual / cron）
  * @returns {Promise<{ok: boolean, syncState: object, error?: string}>}
  */
-export async function syncBilibiliVideos(kv, { username = 'unknown', ip = 'unknown', trigger = 'manual' } = {}) {
+export async function syncBilibiliVideos(context, kv, { username = 'unknown', ip = 'unknown', trigger = 'manual' } = {}) {
   // 读取站点配置，确定 mid、同步数量上限、以及可选的自定义 Cookie
   const siteConfig = await getSiteConfig(kv);
   const mid = String((siteConfig && siteConfig.videoSync && siteConfig.videoSync.mid) || '28826850');
@@ -598,6 +599,15 @@ export async function syncBilibiliVideos(kv, { username = 'unknown', ip = 'unkno
   if (list) {
     const videoData = await getVideoData(kv);
     videoData.synced = list.slice(0, maxCount);
+
+    // 封面转存到 COS（失败不阻断同步，仅记录）
+    let coverCacheResult = null;
+    try {
+      coverCacheResult = await cacheVideoCovers(videoData.synced, context);
+    } catch (coverErr) {
+      console.warn('[bilibili sync] 封面转存失败：', coverErr.message);
+    }
+
     videoData.updatedAt = Date.now();
     await saveVideoData(kv, videoData);
 
