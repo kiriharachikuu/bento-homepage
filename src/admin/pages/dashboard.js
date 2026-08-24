@@ -14,6 +14,7 @@
  */
 import { get } from '../api.js';
 import { formatTime, emptyState, showLoading, hideLoading } from '../ui.js';
+import { icon } from '../icons.js';
 
 /** HTML 转义，防止动态内容破坏结构或注入脚本 */
 function escapeHtml(text) {
@@ -64,7 +65,7 @@ const SYNC_STATUS = {
 function loadFailed(message) {
     return `
         <div class="empty" style="padding: 24px 8px">
-            <div class="empty-icon">⚠️</div>
+            <div class="empty-icon">${icon('alert-circle', { class: 'w-12 h-12' })}</div>
             <div class="empty-text" style="color: var(--color-danger)">加载失败：${escapeHtml(message || '未知错误')}</div>
         </div>`;
 }
@@ -197,14 +198,14 @@ export async function render(container) {
         <div class="card">
             <div class="card-title">快捷入口</div>
             <div style="display: flex; flex-wrap: wrap; gap: 10px">
-                <a class="btn" href="#/site">🌐 网站信息</a>
-                <a class="btn" href="#/beian">📜 备案信息</a>
-                <a class="btn" href="#/content">📝 文字内容</a>
-                <a class="btn" href="#/videos">🎬 视频管理</a>
-                <a class="btn" href="#/versions">🕘 版本历史</a>
-                <a class="btn" href="#/logs">📋 操作日志</a>
-                <a class="btn" href="#/account">👤 账号设置</a>
-                <a class="btn" href="/" target="_blank" rel="noopener">🏠 查看前台</a>
+                <a class="btn inline-flex items-center gap-2" href="#/site">${icon('globe', { class: 'w-4 h-4' })}网站信息</a>
+                <a class="btn inline-flex items-center gap-2" href="#/beian">${icon('file-text', { class: 'w-4 h-4' })}备案信息</a>
+                <a class="btn inline-flex items-center gap-2" href="#/content">${icon('edit-3', { class: 'w-4 h-4' })}文字内容</a>
+                <a class="btn inline-flex items-center gap-2" href="#/videos">${icon('video', { class: 'w-4 h-4' })}视频管理</a>
+                <a class="btn inline-flex items-center gap-2" href="#/versions">${icon('clock', { class: 'w-4 h-4' })}版本历史</a>
+                <a class="btn inline-flex items-center gap-2" href="#/logs">${icon('list', { class: 'w-4 h-4' })}操作日志</a>
+                <a class="btn inline-flex items-center gap-2" href="#/account">${icon('user', { class: 'w-4 h-4' })}账号设置</a>
+                <a class="btn inline-flex items-center gap-2" href="/" target="_blank" rel="noopener">${icon('globe', { class: 'w-4 h-4' })}查看前台</a>
             </div>
         </div>`;
 

@@ -12,6 +12,7 @@
  */
 import { get } from '../api.js';
 import { formatTime, emptyState, showLoading, hideLoading } from '../ui.js';
+import { icon } from '../icons.js';
 
 /** 每页条数（服务端分页） */
 const PAGE_SIZE = 20;
@@ -146,7 +147,7 @@ export function render(container) {
         } catch (err) {
             listEl.innerHTML = `
                 <div class="empty">
-                    <div class="empty-icon">⚠️</div>
+                    <div class="empty-icon">${icon('alert-circle', { class: 'w-12 h-12' })}</div>
                     <div class="empty-text" style="color: var(--color-danger)">加载失败：${escapeHtml(err.message || '未知错误')}</div>
                 </div>`;
             pagerEl.style.display = 'none';

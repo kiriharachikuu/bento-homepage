@@ -4,6 +4,7 @@ import { VideoListModal } from './js/components/VideoListModal.js'
 import { updateAllFanCounts } from './js/site.js'
 import { updateHeader, updateFooter } from './js/header.js'
 import { initRemoteConfig } from './js/remoteConfig.js'
+import { initGridSizing } from './js/gridSizing.js'
 
 // 模块级状态：保证 renderApp 可重复调用（单例与一次性事件只初始化一次）
 let gridManager = null
@@ -152,171 +153,264 @@ function renderApp() {
   // 渲染所有卡片到网格容器（renderTo 内部会清空容器，重复调用安全）
   cardManager.renderTo('.grid-container')
   
-  // 添加拖拽功能
+  // 添加拖拽功能（Pointer Events 实现丝滑拖拽）
   const container = document.querySelector('.grid-container')
   draggables = document.querySelectorAll('.draggable-card')
-  
+
   // 初始化网格管理器
   gridManager = new GridManager(4, 100)
   // 初始计算所有卡片的位置
   gridManager.recalculateAllPositions()
-  
+
   // 缓存容器样式信息
   const containerComputed = getComputedStyle(container)
   columnGap = parseFloat(containerComputed.columnGap) || 0
   rowGap = parseFloat(containerComputed.rowGap) || 0
-  
-  // 为每个可拖拽元素添加索引属性
+
+  // ===== 丝滑拖拽系统 =====
+  let dragState = null
+
+  function onPointerDown(e) {
+    // 已有拖拽进行中，忽略
+    if (dragState) return
+    // 左键或触摸
+    if (e.button !== undefined && e.button !== 0) return
+    // 忽略来自链接/按钮/输入框/iframe 的拖拽
+    if (e.target.closest('a, button, input, textarea, iframe, [data-no-drag]')) return
+
+    const card = e.currentTarget
+    const rect = card.getBoundingClientRect()
+
+    // 计算光标在卡片内的偏移
+    const offsetX = e.clientX - rect.left
+    const offsetY = e.clientY - rect.top
+
+    // 创建占位卡（留在 Grid 原位，保持布局流动）
+    const placeholder = document.createElement('div')
+    placeholder.className = 'drag-placeholder'
+    placeholder.style.width = rect.width + 'px'
+    placeholder.style.height = rect.height + 'px'
+
+    // 同步尺寸类（跨列/跨行）
+    if (card.classList.contains('md:col-span-2')) {
+      placeholder.classList.add('md:col-span-2')
+    }
+    if (card.classList.contains('md:row-span-2') || card.id === 'music-player-card') {
+      placeholder.classList.add('md:row-span-2')
+      placeholder.style.aspectRatio = 'auto'
+    }
+
+    // 插入占位卡到原位
+    card.parentNode.insertBefore(placeholder, card)
+
+    // 将卡片移到 body 末尾，彻底脱离 Grid 容器，避免影响布局
+    document.body.appendChild(card)
+
+    // 将卡片转为 fixed 定位，脱离文档流
+    card.style.width = rect.width + 'px'
+    card.style.height = rect.height + 'px'
+    card.style.left = '0px'
+    card.style.top = '0px'
+    card.style.transform = `translate(${rect.left}px, ${rect.top}px) scale(1.05) rotate(2deg)`
+    card.classList.add('is-dragging')
+
+    // 全局事件监听（一次拖拽一套，结束后清理）
+    dragState = {
+      card,
+      placeholder,
+      offsetX,
+      offsetY,
+      pointerId: e.pointerId,
+      targetX: rect.left,
+      targetY: rect.top,
+      currentX: rect.left,
+      currentY: rect.top,
+      animating: false,
+      lastHitCard: null,
+      lastHitTime: 0
+    }
+
+    document.addEventListener('pointermove', onPointerMove)
+    document.addEventListener('pointerup', onPointerUp)
+    document.addEventListener('pointercancel', onPointerUp)
+
+    // 启动 rAF 渲染循环
+    startDragLoop()
+  }
+
+  function startDragLoop() {
+    if (!dragState || dragState.animating) return
+    dragState.animating = true
+
+    function tick() {
+      if (!dragState) return
+      // 带阻尼的跟随：越接近目标越慢，视觉更丝滑
+      dragState.currentX += (dragState.targetX - dragState.currentX) * 0.2
+      dragState.currentY += (dragState.targetY - dragState.currentY) * 0.2
+
+      const dx = dragState.targetX - dragState.currentX
+      const dy = dragState.targetY - dragState.currentY
+      const distance = Math.sqrt(dx * dx + dy * dy)
+
+      if (distance > 0.3) {
+        dragState.card.style.transform =
+          `translate(${dragState.currentX}px, ${dragState.currentY}px) scale(1.05) rotate(2deg)`
+        requestAnimationFrame(tick)
+      } else {
+        dragState.card.style.transform =
+          `translate(${dragState.targetX}px, ${dragState.targetY}px) scale(1.05) rotate(2deg)`
+        dragState.animating = false
+      }
+    }
+    requestAnimationFrame(tick)
+  }
+
+  function onPointerMove(e) {
+    if (!dragState || e.pointerId !== dragState.pointerId) return
+
+    // 更新目标位置
+    dragState.targetX = e.clientX - dragState.offsetX
+    dragState.targetY = e.clientY - dragState.offsetY
+
+    // 重新启动动画循环
+    if (!dragState.animating) {
+      startDragLoop()
+    }
+
+    // 碰撞检测：找到光标下的卡片（节流，每 50ms 最多一次）
+    const now = performance.now()
+    if (now - dragState.lastHitTime < 40) return
+    dragState.lastHitTime = now
+
+    // 先隐藏被拖拽卡，让 elementFromPoint 能取到下面的元素
+    dragState.card.style.visibility = 'hidden'
+    const below = document.elementFromPoint(e.clientX, e.clientY)
+    dragState.card.style.visibility = ''
+
+    if (!below) return
+    const targetCard = below.closest('.draggable-card:not(.is-dragging)')
+
+    if (!targetCard) return
+
+    // 计算插入方向
+    const rect = targetCard.getBoundingClientRect()
+    const x = e.clientX - rect.left
+    const y = e.clientY - rect.top
+    const insertAfter = x > rect.width / 2 || y > rect.height / 2
+
+    // 判断占位卡是否已经在正确位置
+    const placeholder = dragState.placeholder
+    const nextCorrect = insertAfter
+      ? placeholder.nextSibling === targetCard.nextSibling
+      : placeholder.previousSibling === targetCard
+
+    if (!nextCorrect) {
+      // 碰撞反馈（只在换卡片时触发）
+      if (targetCard !== dragState.lastHitCard) {
+        dragState.lastHitCard = targetCard
+        targetCard.classList.remove('is-hit')
+        void targetCard.offsetWidth // 触发重绘，重播动画
+        targetCard.classList.add('is-hit')
+      }
+
+      // 挪动占位卡到新位置（Grid 自身流动带动其他卡片丝滑避让）
+      if (insertAfter) {
+        targetCard.parentNode.insertBefore(placeholder, targetCard.nextSibling)
+      } else {
+        targetCard.parentNode.insertBefore(placeholder, targetCard)
+      }
+    }
+  }
+
+  function onPointerUp(e) {
+    if (!dragState || e.pointerId !== dragState.pointerId) return
+
+    const { card, placeholder } = dragState
+
+    // 移除全局事件
+    document.removeEventListener('pointermove', onPointerMove)
+    document.removeEventListener('pointerup', onPointerUp)
+    document.removeEventListener('pointercancel', onPointerUp)
+
+    // 停止动画循环
+    dragState.animating = false
+
+    // 缓动落回：卡片动画飞到占位卡位置
+    const finalRect = placeholder.getBoundingClientRect()
+    const startX = dragState.currentX
+    const startY = dragState.currentY
+    const endX = finalRect.left
+    const endY = finalRect.top
+    const duration = 280
+    const startTime = performance.now()
+
+    function easeOutBack(t) {
+      const c1 = 1.70158
+      const c3 = c1 + 1
+      return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2)
+    }
+
+    function landTick(now) {
+      if (!dragState) return
+      const elapsed = now - startTime
+      const t = Math.min(elapsed / duration, 1)
+      const eased = easeOutBack(t)
+
+      const x = startX + (endX - startX) * eased
+      const y = startY + (endY - startY) * eased
+      const scale = 1.05 - 0.05 * eased
+      const rotate = 2 * (1 - eased)
+
+      card.style.transform = `translate(${x}px, ${y}px) scale(${scale}) rotate(${rotate}deg)`
+
+      if (t < 1) {
+        requestAnimationFrame(landTick)
+      } else {
+        finishDrag()
+      }
+    }
+
+    requestAnimationFrame(landTick)
+
+    function finishDrag() {
+      if (!dragState) return
+      // 把卡片放回占位卡的位置
+      placeholder.parentNode.insertBefore(card, placeholder)
+      placeholder.remove()
+
+      // 清理拖拽样式
+      card.classList.remove('is-dragging')
+      card.style.transform = ''
+      card.style.left = ''
+      card.style.top = ''
+      card.style.width = ''
+      card.style.height = ''
+      card.style.visibility = ''
+
+      // 清除所有碰撞反馈
+      document.querySelectorAll('.is-hit').forEach(c => c.classList.remove('is-hit'))
+
+      // 更新索引和网格
+      updateCardIndices()
+      gridManager.recalculateAllPositions()
+      fillEmptySpaces(gridManager)
+      draggables = container.querySelectorAll('.draggable-card')
+
+      dragState = null
+    }
+  }
+
+  // 为每个可拖拽元素添加索引属性和拖拽事件
   draggables.forEach((draggable, index) => {
     draggable.setAttribute('data-index', index)
-    
+
     // 添加淡入动画延迟
     draggable.style.animationDelay = `${index * 0.1}s`
     draggable.classList.add('fade-in')
 
-    // 添加拖拽事件
-    draggable.addEventListener('dragstart', (e) => {
-      const draggedItem = draggable
-      const dragStartIndex = parseInt(draggedItem.getAttribute('data-index'))
-      draggedItem.classList.add('dragging')
-      
-      // 释放被拖拽卡片的位置
-      gridManager.releasePosition(draggedItem)
-      
-      // 创建占位元素，考虑卡片尺寸
-      const placeholder = document.createElement('div')
-      placeholder.className = 'draggable-card placeholder'
-      placeholder.style.width = draggedItem.offsetWidth + 'px'
-      placeholder.style.height = draggedItem.offsetHeight + 'px'
-      
-      // 检查卡片尺寸类型
-      const size = gridManager.getCardSize(draggedItem)
-      if (size.height === 2) {
-        // 1*2卡片（占据1列2行）
-        placeholder.classList.add('md\:row-span-2')
-      } else if (size.width === 2) {
-        // 2*1卡片（占据2列1行）
-        placeholder.classList.add('md\:col-span-2')
-      }
-      
-      // 添加缩放动画
-      setTimeout(() => {
-        draggedItem.classList.add('dragging-active')
-      }, 0)
-      
-      // 设置拖拽数据
-      e.dataTransfer.effectAllowed = 'move'
-      e.dataTransfer.setData('text/html', draggedItem.innerHTML)
-      
-      // 保存拖拽相关信息到元素上
-      draggedItem._placeholder = placeholder
-      draggedItem._dragStartIndex = dragStartIndex
-      draggedItem._size = size
-    })
-
-    draggable.addEventListener('dragend', (e) => {
-      const draggedItem = e.target
-      // 移除所有拖拽相关的类
-      draggedItem.classList.remove('dragging', 'dragging-active')
-      
-      // 移除所有占位符
-      container.querySelectorAll('.placeholder').forEach(ph => ph.remove())
-      
-      // 移除所有挤压效果
-      draggables.forEach(card => {
-        card.classList.remove('shift-left', 'shift-right', 'shift-up', 'shift-down')
-        card.style.removeProperty('transition')
-      })
-      
-      // 重新计算所有卡片的位置
-      gridManager.recalculateAllPositions()
-      
-      // 填充空位
-      fillEmptySpaces(gridManager)
-      
-      // 更新draggables集合
-      draggables = container.querySelectorAll('.draggable-card')
-      
-      // 清理自定义属性
-      delete draggedItem._placeholder
-      delete draggedItem._dragStartIndex
-      delete draggedItem._size
-    })
+    // pointerdown 绑定在卡片上，move/up/cancel 全局绑定
+    draggable.addEventListener('pointerdown', onPointerDown)
   })
-  
-  // 容器事件处理（容器元素在重渲染间保留，只绑定一次避免重复注册）
-  if (!containerDragEventsBound) {
-    containerDragEventsBound = true
-    container.addEventListener('dragover', (e) => {
-      e.preventDefault()
-      e.dataTransfer.dropEffect = 'move'
-    
-      const target = e.target.closest('.draggable-card:not(.dragging)')
-      const draggedItem = container.querySelector('.draggable-card.dragging')
-    
-      if (target && draggedItem && draggedItem._placeholder) {
-        // 移除现有的占位符
-        container.querySelectorAll('.placeholder').forEach(ph => ph.remove())
-      
-        // 计算放置位置
-        const rect = target.getBoundingClientRect()
-        const x = e.clientX - rect.left
-        const y = e.clientY - rect.top
-        const horizontalMidpoint = rect.width / 2
-        const verticalMidpoint = rect.height / 2
-      
-        // 根据鼠标位置决定插入方向
-        const insertAfter = (x > horizontalMidpoint && y > verticalMidpoint) || 
-                            (x > horizontalMidpoint && y <= verticalMidpoint) ||
-                            (x <= horizontalMidpoint && y > verticalMidpoint)
-      
-        // 应用挤压效果到其他卡片
-        applyShiftEffect(target, insertAfter, columnGap, rowGap, gridManager)
-      
-        // 插入占位符
-        if (insertAfter) {
-          target.parentNode.insertBefore(draggedItem._placeholder, target.nextSibling)
-        } else {
-          target.parentNode.insertBefore(draggedItem._placeholder, target)
-        }
-      }
-    })
-  
-    container.addEventListener('dragenter', (e) => {
-      e.preventDefault()
-    })
-  
-    container.addEventListener('drop', (e) => {
-      e.preventDefault()
-    
-      const draggedItem = container.querySelector('.draggable-card.dragging')
-      if (draggedItem && draggedItem._placeholder && draggedItem._placeholder.parentNode) {
-        // 交换元素位置
-        draggedItem._placeholder.parentNode.insertBefore(draggedItem, draggedItem._placeholder)
-      
-        // 更新所有卡片的索引
-        updateCardIndices()
-      
-        // 重新计算所有卡片的位置
-        gridManager.recalculateAllPositions()
-      
-        // 更新draggables集合
-        draggables = container.querySelectorAll('.draggable-card')
-      }
-    
-      // 移除占位符
-      container.querySelectorAll('.placeholder').forEach(ph => ph.remove())
-    
-      // 移除挤压效果
-      draggables.forEach(card => {
-        card.classList.remove('shift-left', 'shift-right', 'shift-up', 'shift-down')
-        card.style.removeProperty('transition')
-      })
-    
-      // 填充空位
-      fillEmptySpaces(gridManager)
-    })
-  }
 
   // 初始化粉丝数更新
   updateAllFanCounts()
@@ -362,6 +456,7 @@ document.addEventListener('DOMContentLoaded', async function () {
   // 缓存后台刷新发现配置变化时，通过回调触发页面重渲染
   await initRemoteConfig(() => renderApp());
   renderApp();
+  initGridSizing();
 });
 
 // 应用挤压效果到其他卡片

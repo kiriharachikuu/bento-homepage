@@ -13,11 +13,13 @@
  */
 import { get, post, setUnauthorizedHandler } from './api.js';
 import { toast, confirmDialog, askGuardLeave, clearGuard } from './ui.js';
+import { icon } from './icons.js';
 import { render as renderDashboard } from './pages/dashboard.js';
 import { render as renderSite } from './pages/site.js';
 import { render as renderBeian } from './pages/beian.js';
 import { render as renderContent } from './pages/content.js';
 import { render as renderVideos } from './pages/videos.js';
+import { render as renderCards } from './pages/cards.js';
 import { render as renderVersions } from './pages/versions.js';
 import { render as renderLogs } from './pages/logs.js';
 import { render as renderAccount } from './pages/account.js';
@@ -26,14 +28,15 @@ import { render as renderAccount } from './pages/account.js';
  * 路由表：hash -> 页面模块（文件名与路由一一对应）
  * ------------------------------------------------------------ */
 const routes = [
-    { path: '#/dashboard', title: '仪表盘', icon: '📊', render: renderDashboard },
-    { path: '#/site', title: '网站信息', icon: '🌐', render: renderSite },
-    { path: '#/beian', title: '备案信息', icon: '📜', render: renderBeian },
-    { path: '#/content', title: '文字内容', icon: '📝', render: renderContent },
-    { path: '#/videos', title: '视频管理', icon: '🎬', render: renderVideos },
-    { path: '#/versions', title: '版本历史', icon: '🕘', render: renderVersions },
-    { path: '#/logs', title: '操作日志', icon: '📋', render: renderLogs },
-    { path: '#/account', title: '账号设置', icon: '👤', render: renderAccount }
+    { path: '#/dashboard', title: '仪表盘',       icon: 'dashboard',    render: renderDashboard },
+    { path: '#/content',   title: '内容编辑',       icon: 'edit-3',       render: renderContent },
+    { path: '#/videos',    title: '视频管理',       icon: 'video',        render: renderVideos },
+    { path: '#/cards',     title: '卡片管理',       icon: 'layout-grid',  render: renderCards },
+    { path: '#/site',      title: '网站信息',       icon: 'globe',        render: renderSite },
+    { path: '#/beian',     title: '备案信息',       icon: 'file-text',    render: renderBeian },
+    { path: '#/versions',  title: '版本历史',       icon: 'clock',        render: renderVersions },
+    { path: '#/logs',      title: '操作日志',       icon: 'list',         render: renderLogs },
+    { path: '#/account',   title: '账号设置',       icon: 'user',         render: renderAccount }
 ];
 
 /** 默认路由 */
@@ -78,12 +81,15 @@ function renderLogin(notice) {
             ${notice
                 ? `
             <div class="card login-notice">
-                <div class="login-notice-title">⚠️ 后端存储未就绪</div>
+                <div class="login-notice-title">
+                    <span class="login-notice-icon">${icon('alert-triangle', { class: 'w-5 h-5' })}</span>
+                    后端存储未就绪
+                </div>
                 <div class="login-notice-text">${notice}</div>
             </div>`
                 : ''}
             <div class="card login-card">
-                <div class="login-logo">🛠️</div>
+                <div class="login-logo">${icon('logo', { class: 'w-12 h-12' })}</div>
                 <div class="login-title">知空空的空想世界 - 内容管理后台</div>
                 <form id="login-form" novalidate>
                     <div class="form-group">
@@ -153,7 +159,8 @@ function renderAdmin() {
         .map(
             (route) => `
             <a class="nav-item" href="${route.path}" data-path="${route.path}">
-                <span class="nav-icon">${route.icon}</span><span>${route.title}</span>
+                <span class="nav-icon">${icon(route.icon, { class: 'w-5 h-5' })}</span>
+                <span class="nav-text">${route.title}</span>
             </a>`
         )
         .join('');
@@ -162,16 +169,24 @@ function renderAdmin() {
     app.innerHTML = `
         <div class="layout">
             <aside class="sidebar">
-                <div class="sidebar-logo"><span>🛠️</span><span>内容管理</span></div>
+                <div class="sidebar-logo">
+                    <span class="sidebar-logo-icon">${icon('logo', { class: 'w-6 h-6' })}</span>
+                    <span class="sidebar-logo-text">内容管理</span>
+                </div>
                 <nav class="sidebar-nav">${navItems}</nav>
                 <div class="sidebar-footer">知空空的空想世界</div>
             </aside>
             <div class="main">
                 <header class="topbar">
-                    <div class="topbar-title" id="page-title">加载中…</div>
+                    <div class="topbar-left">
+                        <div class="topbar-title" id="page-title">加载中…</div>
+                    </div>
                     <div class="topbar-user">
                         <span class="topbar-username" id="topbar-username"></span>
-                        <button type="button" class="btn btn-sm" id="btn-logout">退出</button>
+                        <button type="button" class="btn btn-sm btn-ghost" id="btn-logout">
+                            ${icon('log-out', { class: 'w-4 h-4' })}
+                            <span>退出</span>
+                        </button>
                     </div>
                 </header>
                 <main class="content" id="page-container"></main>
@@ -206,7 +221,7 @@ function renderRoute(route) {
         container.innerHTML = `
             <div class="card">
                 <div class="empty">
-                    <div class="empty-icon">⚠️</div>
+                    <div class="empty-icon">${icon('alert-circle', { class: 'w-12 h-12' })}</div>
                     <div class="empty-text">页面加载失败：${err && err.message ? err.message : '未知错误'}</div>
                 </div>
             </div>`;

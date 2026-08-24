@@ -29,6 +29,7 @@ import {
     showLoading,
     hideLoading
 } from '../ui.js';
+import { icon } from '../icons.js';
 
 /* ------------------------------------------------------------
  * 常量与纯工具
@@ -349,7 +350,7 @@ ${listCardHtml()}`;
         container.innerHTML = `${pageHeaderHtml()}
         <div class="card">
             <div class="empty">
-                <div class="empty-icon">⚠️</div>
+                <div class="empty-icon">${icon('alert-circle', { class: 'w-12 h-12' })}</div>
                 <div class="empty-text">视频数据加载失败：${escapeHtml(loadError || '未知错误')}</div>
                 <div style="margin-top:12px;">
                     <button type="button" class="btn btn-sm" data-role="retry-load">重试加载</button>
@@ -364,7 +365,7 @@ ${listCardHtml()}`;
         container.innerHTML = `${pageHeaderHtml()}
         <div class="card">
             <div class="empty">
-                <div class="empty-icon">🎬</div>
+                <div class="empty-icon">${icon('video', { class: 'w-12 h-12' })}</div>
                 <div class="empty-text">正在加载视频数据…</div>
             </div>
         </div>`;

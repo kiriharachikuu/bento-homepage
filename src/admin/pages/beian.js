@@ -12,6 +12,7 @@
  * 保存时整体提交 modules: { beian }。
  */
 import { toast, confirmDialog, createUnsavedGuard, registerGuard, clearGuard, showLoading, hideLoading } from '../ui.js';
+import { icon } from '../icons.js';
 import { escapeHtml, loadSiteConfig, saveConfigModules, watchFormChanges } from './_shared.js';
 
 /** 渲染备案信息页 @param {HTMLElement} container */
@@ -140,7 +141,7 @@ export function render(container) {
             // 加载失败：以错误占位替换表单，避免在空表单上误存覆盖配置
             card.innerHTML = `
                 <div class="empty">
-                    <div class="empty-icon">⚠️</div>
+                    <div class="empty-icon">${icon('alert-circle', { class: 'w-12 h-12' })}</div>
                     <div class="empty-text">配置加载失败：${escapeHtml(err.message || '未知错误')}</div>
                 </div>`;
             toast(err.message || '配置加载失败', 'error');

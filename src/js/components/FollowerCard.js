@@ -1,4 +1,9 @@
 import { BaseCard } from './BaseCard.js';
+import { updateSingleFanCount } from '../fans.js';
+
+const DEFAULT_ICON = `<svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" width="100%" height="100%">
+  <path d="M512 128c-212 0-384 172-384 384s172 384 384 384 384-172 384-384-172-384-384-384z m0 640c-141.4 0-256-114.6-256-256s114.6-256 256-256 256 114.6 256 256-114.6 256-256 256z m0-384c-70.7 0-128 57.3-128 128s57.3 128 128 128 128-57.3 128-128-57.3-128-128-128z" fill="#ffffff"/>
+</svg>`;
 
 /**
  * 粉丝数卡片基类
@@ -7,23 +12,31 @@ export class FollowerCard extends BaseCard {
   /**
    * 构造函数
    * @param {Object} config - 卡片配置
-   * @param {string} config.platform - 平台名称
+   * @param {string} config.id - 卡片 ID
+   * @param {string} config.platform - 平台标识（用于 DOM 元素 ID）
    * @param {string} config.title - 平台中文标题
-   * @param {string} config.icon - 平台图标SVG
-   * @param {string} config.color - 平台颜色类
-   * @param {string} config.homepageUrl - 主页链接
+   * @param {string} [config.icon] - 平台图标 SVG
+   * @param {string} [config.color] - 平台颜色类（默认 pink）
+   * @param {string} [config.homepageUrl] - 主页链接
+   * @param {string} config.apiUrl - 粉丝数 API 地址
    */
-  constructor(config) {
+  constructor(config = {}) {
+    const color = config.color || 'pink';
+    const bgClass = `bg-gradient-to-br from-${color}-50 to-${color}-100`;
+    const classes = [bgClass, 'follower-card', config.classes || ''].filter(Boolean).join(' ');
+
     super({
-      id: `${config.platform}-follower-card`,
-      classes: `bg-gradient-to-br from-${config.color}-50 to-${config.color}-100 follower-card`,
+      id: config.id || `${config.platform || 'follower'}-card`,
+      classes,
       ...config
     });
-    this.platform = config.platform;
-    this.title = config.title || config.platform;
-    this.icon = config.icon;
-    this.color = config.color;
-    this.homepageUrl = config.homepageUrl;
+
+    this.platform = config.platform || 'follower';
+    this.title = config.title || config.platform || '粉丝';
+    this.icon = config.icon || DEFAULT_ICON;
+    this.color = color;
+    this.homepageUrl = config.homepageUrl || '#';
+    this.apiUrl = config.apiUrl || '';
   }
 
   /**
@@ -55,5 +68,14 @@ export class FollowerCard extends BaseCard {
         </div>
       </div>
     `;
+  }
+
+  /**
+   * 生命周期：挂载后获取粉丝数
+   */
+  onMount() {
+    if (this.apiUrl) {
+      updateSingleFanCount(this.platform, this.apiUrl);
+    }
   }
 }

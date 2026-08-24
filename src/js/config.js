@@ -9,6 +9,9 @@ const siteConfig = {
     titleIcon: "/img/title-icon.png"
   },
 
+  // 卡片配置（配置驱动：卡片的类型、数量、顺序由此决定；为 undefined 时使用默认卡片布局）
+  cards: undefined,
+
   // 用户信息
   user: {
     name: "桐原知空",
@@ -97,6 +100,21 @@ const siteConfig = {
   // 音乐播放器配置
   musicPlayer: {
     playlistId: "17479746916"
+  },
+
+  // 留言板配置
+  comments: {
+    carouselInterval: 5000, // 轮播间隔（毫秒）
+    list: [
+      {
+        text: "承接干声修对业务，原创曲/填词曲/合唱企划欢迎戳我~",
+        date: "2025/9/13"
+      },
+      {
+        text: "Hello, Sekai",
+        date: "2025/10/25"
+      }
+    ]
   },
 
   // 备案信息

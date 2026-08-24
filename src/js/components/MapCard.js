@@ -8,9 +8,9 @@ export class MapCard extends BaseCard {
    * 构造函数
    * @param {Object} config - 卡片配置
    */
-  constructor(config) {
+  constructor(config = {}) {
     super({
-      id: 'map-card',
+      id: config.id || 'map-card',
       classes: 'fade-in',
       ...config
     });

@@ -1,25 +1,25 @@
 /**
- * 文字内容页（#/content）
+ * 内容编辑页（#/content）
  *
  * 页内 tab 分四组编辑：
  * 1. 个人信息：user.name / user.title / user.description（富文本）/ user.avatar / user.learnMoreLink
- * 2. 了解更多长文：user.learnMoreContent（富文本，内容较长单独成 tab）
+ * 2. 关于我长文：user.learnMoreContent（富文本，内容较长单独成 tab）
  * 3. 社交与联系：socialLinks 四项 / contactText / contactButtonLink
- * 4. 音乐播放器：musicPlayer.playlistId
+ * 4. 音乐与留言：musicPlayer.playlistId / comments.carouselInterval / comments.list
  *
- * 保存时一次提交 modules: { user, socialLinks, contactText, contactButtonLink, musicPlayer }。
+ * 保存时一次提交 modules: { user, socialLinks, contactText, contactButtonLink, musicPlayer, comments }。
  *
  * 富文本字段组件（createRichTextField）说明：
- * - 默认源码模式：等宽字体 textarea 显示原始 HTML，原样保存不重排
- * - 「切换到富文本」：内容非空时先确认（wangEditor 会重排 HTML），确认后挂载
- *   wangEditor（createToolbar + createEditor）并载入当前内容
- * - 「切换回源码」：把 editor.getHtml() 写回 textarea 并销毁编辑器实例
+ * - 默认富文本模式：页面加载时直接创建 wangEditor，所见即所得编辑
+ * - 「切换到源码」：等宽字体 textarea 显示原始 HTML，原样保存不重排
+ * - 「切换回富文本」：把 textarea 内容写回编辑器（富文本模式可能重排 HTML 结构）
  * - 「预览」：模态框内 iframe（srcdoc 引入 Tailwind CDN）正确预览含 class 的内容
  * - 编辑器内图片上传复用 presign 直传流程（customUpload）
  */
 import { createEditor, createToolbar } from '@wangeditor/editor';
 import '@wangeditor/editor/dist/css/style.css';
 import { toast, confirmDialog, createUnsavedGuard, registerGuard, clearGuard, showLoading, hideLoading } from '../ui.js';
+import { icon } from '../icons.js';
 import { escapeHtml, loadSiteConfig, saveConfigModules, uploadImage, createImageField, watchFormChanges } from './_shared.js';
 
 /* ============================================================
@@ -30,8 +30,8 @@ import { escapeHtml, loadSiteConfig, saveConfigModules, uploadImage, createImage
 let richFieldSeq = 0;
 
 /**
- * 创建富文本字段：默认源码模式（等宽 textarea，原样保存 HTML），
- * 可切换 wangEditor 富文本模式，带图片上传与 Tailwind 预览。
+ * 创建富文本字段：默认富文本模式（wangEditor，所见即所得），
+ * 可切换源码模式，带图片上传与 Tailwind 预览。
  * @param {object} options
  * @param {string} [options.value=''] 初始 HTML
  * @param {string} [options.placeholder] 富文本编辑器占位文案
@@ -52,13 +52,13 @@ function createRichTextField({
     const root = document.createElement('div');
     root.innerHTML = `
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
-            <button type="button" class="btn btn-sm" data-role="toggle">切换到富文本</button>
             <button type="button" class="btn btn-sm" data-role="preview">预览</button>
-            <span class="form-hint" data-role="mode-tip" style="margin:0;">当前模式：源码（原样保存，不重排 HTML）</span>
+            <button type="button" class="btn btn-sm" data-role="toggle">切换到源码</button>
+            <span class="form-hint" data-role="mode-tip" style="margin:0;">当前模式：富文本（所见即所得编辑）。富文本模式可能会重排 HTML 结构</span>
         </div>
-        <textarea class="form-textarea" data-role="source" spellcheck="false"
+        <textarea class="form-textarea" data-role="source" spellcheck="false" hidden
                   style="font-family:ui-monospace,SFMono-Regular,Consolas,'Courier New',monospace;font-size:13px;min-height:${height}px;"></textarea>
-        <div class="editor-wrap" data-role="wrap" hidden style="height:${height}px;">
+        <div class="editor-wrap" data-role="wrap" style="height:${height}px;">
             <div class="editor-toolbar" id="${toolbarId}"></div>
             <div class="editor-container" id="${editorId}"></div>
         </div>`;
@@ -76,27 +76,16 @@ function createRichTextField({
     let editor = null;
     /** wangEditor 工具栏实例（富文本模式时非空） */
     let toolbar = null;
-    /** 是否正在切换模式（防止确认弹窗期间重复触发） */
-    let switching = false;
 
     // 源码模式输入 -> 脏状态
     sourceArea.addEventListener('input', () => {
         if (onChange) onChange();
     });
 
-    /** 切换到富文本模式（内容非空时先确认，防止重排丢结构） */
-    async function switchToRich() {
-        if (editor || switching) return;
+    /** 切换到富文本模式（直接切换，不弹确认） */
+    function switchToRich() {
+        if (editor) return;
         const html = sourceArea.value;
-        if (html.trim()) {
-            switching = true;
-            const ok = await confirmDialog({
-                title: '切换编辑模式',
-                message: '富文本编辑器可能会重排现有 HTML 结构（如移除自定义 class、合并标签）。确定切换吗？'
-            });
-            switching = false;
-            if (!ok) return;
-        }
 
         // 先显示容器再创建实例（编辑器需在可见环境下计算高度）
         sourceArea.hidden = true;
@@ -125,10 +114,23 @@ function createRichTextField({
                 }
             }
         });
-        toolbar = createToolbar({ editor, selector: '#' + toolbarId, config: {} });
+        toolbar = createToolbar({ editor, selector: '#' + toolbarId, config: {
+            toolbarKeys: [
+                'headerSelect',
+                'bold', 'italic', 'underline', 'through',
+                'color', 'bgColor',
+                '|',
+                'list', 'orderedList',
+                'justifyLeft', 'justifyRight', 'justifyCenter',
+                '|',
+                'link', 'image', 'table',
+                '|',
+                'undo', 'redo'
+            ]
+        } });
 
-        toggleBtn.textContent = '切换回源码';
-        modeTip.textContent = '当前模式：富文本（wangEditor，保存时取编辑器内容）';
+        toggleBtn.textContent = '切换到源码';
+        modeTip.textContent = '当前模式：富文本（所见即所得编辑）。富文本模式可能会重排 HTML 结构';
     }
 
     /** 切换回源码模式：取回编辑器内容并销毁实例 */
@@ -192,6 +194,22 @@ function createRichTextField({
     });
     root.querySelector('[data-role="preview"]').addEventListener('click', openPreview);
 
+    // 注入编辑器内容区基础样式（接近前台效果）
+    const styleId = 'rich-text-style-' + richFieldSeq;
+    const styleEl = document.createElement('style');
+    styleEl.id = styleId;
+    styleEl.textContent =
+        '#' + editorId + ' .w-e-text-container .w-e-text{' +
+        'font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;' +
+        'font-size:15px;' +
+        'line-height:1.7;' +
+        'color:#111827;' +
+        '}';
+    document.head.appendChild(styleEl);
+
+    // 默认富文本模式：直接创建 wangEditor
+    switchToRich();
+
     return {
         el: root,
         /** 取当前模式的 HTML（源码模式返回 textarea 内容，富文本模式返回编辑器内容） */
@@ -214,7 +232,7 @@ function createRichTextField({
  * 页面渲染
  * ============================================================ */
 
-/** 渲染文字内容页 @param {HTMLElement} container */
+/** 渲染内容编辑页 @param {HTMLElement} container */
 export function render(container) {
     // 未保存守卫：表单变化置脏，保存成功后复位
     const guard = createUnsavedGuard();
@@ -222,16 +240,16 @@ export function render(container) {
 
     container.innerHTML = `
         <div class="page-header">
-            <h2>文字内容</h2>
-            <span class="page-tip">个人信息、社交链接、联系方式与音乐播放器等文字内容编辑</span>
+            <h2>内容编辑</h2>
+            <span class="page-tip">个人信息、关于我、联系方式、音乐与留言板等内容编辑</span>
         </div>
 
         <!-- 页内 tab 切换（纯 JS 控制面板显隐） -->
         <div class="toolbar" data-role="tabs">
             <button type="button" class="btn btn-sm btn-primary" data-tab="profile">个人信息</button>
-            <button type="button" class="btn btn-sm" data-tab="learnmore">了解更多长文</button>
+            <button type="button" class="btn btn-sm" data-tab="learnmore">关于我长文</button>
             <button type="button" class="btn btn-sm" data-tab="social">社交与联系</button>
-            <button type="button" class="btn btn-sm" data-tab="music">音乐播放器</button>
+            <button type="button" class="btn btn-sm" data-tab="music-comments">音乐与留言</button>
         </div>
 
         <!-- tab 1：个人信息 -->
@@ -261,10 +279,10 @@ export function render(container) {
             </div>
         </div>
 
-        <!-- tab 2：了解更多长文 -->
+        <!-- tab 2：关于我长文 -->
         <div data-panel="learnmore" hidden>
             <div class="card">
-                <div class="card-title">了解更多长文 <span class="card-tip">「了解更多」弹窗中的完整介绍，支持 HTML 与 Tailwind class</span></div>
+                <div class="card-title">关于我长文 <span class="card-tip">「了解更多」弹窗中的完整介绍，支持 HTML 与 Tailwind class</span></div>
                 <div data-field-group="learnMoreContent"></div>
             </div>
         </div>
@@ -294,9 +312,9 @@ export function render(container) {
                 <div class="card-title">联系方式 <span class="card-tip">联系方式卡片的多行文本与按钮链接</span></div>
                 <div class="form-group">
                     <label class="form-label">联系方式文本</label>
-                    <textarea class="form-textarea" data-field="contactText"
+                    <textarea class="form-textarea" data-field="contactText" rows="6"
                               placeholder="每行一条联系方式，如：哔哩哔哩：@xxx"></textarea>
-                    <div class="form-hint">保存为字符串模块（contactText），前台按行展示</div>
+                    <div class="form-hint">每行一条，支持换行。保存为字符串模块（contactText），前台按行展示</div>
                 </div>
                 <div class="form-group">
                     <label class="form-label">联系按钮链接</label>
@@ -307,8 +325,8 @@ export function render(container) {
             </div>
         </div>
 
-        <!-- tab 4：音乐播放器 -->
-        <div data-panel="music" hidden>
+        <!-- tab 4：音乐与留言 -->
+        <div data-panel="music-comments" hidden>
             <div class="card">
                 <div class="card-title">音乐播放器 <span class="card-tip">首页音乐卡片加载的网易云歌单</span></div>
                 <div class="form-group">
@@ -317,13 +335,31 @@ export function render(container) {
                     <div class="form-hint">可在网易云音乐网页版歌单页地址中查看 ID 数字</div>
                 </div>
             </div>
+            <div class="card">
+                <div class="card-title">轮播设置 <span class="card-tip">首页留言卡片自动轮播的速度</span></div>
+                <div class="form-group">
+                    <label class="form-label">轮播间隔（毫秒）</label>
+                    <input type="number" class="form-input" data-field="carouselInterval" min="1000" step="500" value="5000" />
+                    <div class="form-hint">默认 5000 毫秒（5 秒），最小 1000 毫秒</div>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-title">
+                    留言条目
+                    <span class="card-tip">首页留言卡片轮播展示的内容，按顺序循环播放</span>
+                </div>
+                <div data-role="comment-list" class="space-y-3"></div>
+                <div class="form-footer">
+                    <button type="button" class="btn" data-role="add-comment">+ 添加一条</button>
+                </div>
+            </div>
         </div>
 
         <!-- 保存（跨 tab 全量提交） -->
         <div class="card">
             <div class="form-footer" style="margin-top:0;">
                 <button type="button" class="btn btn-primary" data-role="save">保存全部修改</button>
-                <span class="form-hint">一次性提交 user、socialLinks、contactText、contactButtonLink、musicPlayer 五个模块</span>
+                <span class="form-hint">一次性提交 user、socialLinks、contactText、contactButtonLink、musicPlayer、comments 六个模块</span>
             </div>
         </div>`;
 
@@ -362,19 +398,19 @@ export function render(container) {
     });
     container.querySelector('[data-field-group="avatar"]').appendChild(avatarField.el);
 
-    // 简介富文本（tab 1，内容较短，编辑区 260px）
+    // 简介富文本（tab 1，内容较短，编辑区 280px）
     const descriptionField = createRichTextField({
         value: '',
-        height: 260,
+        height: 280,
         placeholder: '请输入简介内容，支持 HTML...',
         onChange: markDirty
     });
     container.querySelector('[data-field-group="description"]').appendChild(descriptionField.el);
 
-    // 了解更多长文富文本（tab 2，内容较长，编辑区 480px）
+    // 关于我长文富文本（tab 2，内容较长，编辑区 520px）
     const learnMoreField = createRichTextField({
         value: '',
-        height: 480,
+        height: 520,
         placeholder: '请输入「了解更多」弹窗的完整介绍...',
         onChange: markDirty
     });
@@ -382,6 +418,17 @@ export function render(container) {
 
     /** 收集全部模块（跨 tab 全量提交；富文本字段原样取值不重排） */
     function collectModules() {
+        const commentItems = [];
+        container.querySelectorAll('[data-comment-item]').forEach((item) => {
+            const text = item.querySelector('[data-comment-text]').value.trim();
+            const date = item.querySelector('[data-comment-date]').value.trim();
+            if (text) {
+                commentItems.push({ text, date });
+            }
+        });
+        const intervalVal = parseInt(field('carouselInterval').value, 10);
+        const carouselInterval = isNaN(intervalVal) || intervalVal < 1000 ? 5000 : intervalVal;
+
         return {
             user: {
                 name: field('name').value.trim(),
@@ -401,16 +448,52 @@ export function render(container) {
             contactButtonLink: field('contactButtonLink').value.trim(),
             musicPlayer: {
                 playlistId: field('playlistId').value.trim()
+            },
+            comments: {
+                carouselInterval,
+                list: commentItems
             }
         };
     }
 
-    /* ---------- 保存：二次确认后一次提交五个模块 ---------- */
+    /* ---------- 留言板：条目增删渲染 ---------- */
+    const commentListEl = container.querySelector('[data-role="comment-list"]');
+
+    function renderCommentItem(cfg = {}) {
+        const item = document.createElement('div');
+        item.className = 'comment-item';
+        item.setAttribute('data-comment-item', '');
+        item.style.cssText = 'display:flex;gap:10px;align-items:flex-start;padding:12px;border:1px solid var(--border-color);border-radius:12px;background:var(--gray-50);';
+        item.innerHTML = `
+            <div style="flex:1;display:flex;flex-direction:column;gap:8px;min-width:0;">
+                <textarea data-comment-text rows="2" class="form-textarea" placeholder="留言内容..." style="min-height:60px;">${escapeHtml(cfg.text || '')}</textarea>
+                <input type="text" data-comment-date class="form-input" placeholder="日期（如 2025/10/25）" value="${escapeHtml(cfg.date || '')}" style="max-width:240px;" />
+            </div>
+            <button type="button" class="btn btn-sm btn-danger" data-role="delete-comment" title="删除">
+                ${icon('trash-2', { class: 'w-4 h-4' })}
+            </button>
+        `;
+        item.querySelector('[data-role="delete-comment"]').addEventListener('click', () => {
+            item.remove();
+            markDirty();
+        });
+        item.querySelectorAll('textarea, input').forEach((el) => {
+            el.addEventListener('input', markDirty);
+        });
+        return item;
+    }
+
+    container.querySelector('[data-role="add-comment"]').addEventListener('click', () => {
+        commentListEl.appendChild(renderCommentItem());
+        markDirty();
+    });
+
+    /* ---------- 保存：二次确认后一次提交六个模块 ---------- */
     const saveBtn = container.querySelector('[data-role="save"]');
     saveBtn.addEventListener('click', async () => {
         const ok = await confirmDialog({
             title: '确认保存',
-            message: '即将保存模块：user、socialLinks、contactText、contactButtonLink、musicPlayer（个人信息、了解更多长文、社交与联系、音乐播放器）。确定保存吗？'
+            message: '即将保存模块：user、socialLinks、contactText、contactButtonLink、musicPlayer、comments（个人信息、关于我长文、社交与联系、音乐与留言）。确定保存吗？'
         });
         if (!ok) return;
 
@@ -453,12 +536,24 @@ export function render(container) {
             field('contactText').value = typeof config.contactText === 'string' ? config.contactText : '';
             field('contactButtonLink').value = typeof config.contactButtonLink === 'string' ? config.contactButtonLink : '';
             field('playlistId').value = musicPlayer.playlistId || '';
+
+            // 留言板
+            const comments = config.comments || {};
+            field('carouselInterval').value = comments.carouselInterval || 5000;
+            commentListEl.innerHTML = '';
+            const list = (comments.list && comments.list.length) ? comments.list : [
+                { text: '承接干声修对业务，原创曲/填词曲/合唱企划欢迎戳我~', date: '2025/9/13' },
+                { text: 'Hello, Sekai', date: '2025/10/25' }
+            ];
+            list.forEach((item) => {
+                commentListEl.appendChild(renderCommentItem(item));
+            });
         } catch (err) {
             // 加载失败：以错误占位替换整个页面，避免在空表单上误存覆盖配置
             container.innerHTML = `
                 <div class="card">
                     <div class="empty">
-                        <div class="empty-icon">⚠️</div>
+                        <div class="empty-icon">${icon('alert-circle', { class: 'w-12 h-12' })}</div>
                         <div class="empty-text">配置加载失败：${escapeHtml(err.message || '未知错误')}</div>
                     </div>
                 </div>`;

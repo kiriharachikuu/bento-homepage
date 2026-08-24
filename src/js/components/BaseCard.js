@@ -25,7 +25,7 @@ export class BaseCard {
   render() {
     const { id, classes } = this.config;
     return `
-      <div id="${id}" class="draggable-card bg-card rounded-2xl p-6 shadow-lg ${classes}" draggable="true">
+      <div id="${id}" class="draggable-card bg-card rounded-2xl p-6 shadow-lg ${classes}">
         <div class="card-inner flex flex-col h-full gap-3">
           ${this.getContent()}
         </div>

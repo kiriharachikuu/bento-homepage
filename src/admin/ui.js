@@ -1,3 +1,5 @@
+import { icon } from './icons.js';
+
 /**
  * 公共 UI 组件与工具（管理后台共用）
  *
@@ -243,7 +245,7 @@ export function formatSize(bytes) {
 export function emptyState(message = '暂无数据') {
     return `
         <div class="empty">
-            <div class="empty-icon">📭</div>
+            <div class="empty-icon">${icon('info', { class: 'w-12 h-12' })}</div>
             <div class="empty-text">${escapeHtml(message)}</div>
         </div>`;
 }

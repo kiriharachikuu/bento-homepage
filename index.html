@@ -23,7 +23,19 @@
     <script type="text/javascript" src="https://webapi.amap.com/maps?v=2.0&key=f79674766531d46a40852dc77860ba25" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
     <script>
-        tailwind.config = { theme: { extend: { fontFamily: { sans: ['Inter', 'sans-serif'] } } } } 
+        tailwind.config = {
+            safelist: [
+                'from-blue-50', 'to-blue-100', 'bg-blue-500',
+                'from-red-50', 'to-red-100', 'bg-red-500',
+                'from-yellow-50', 'to-yellow-100', 'bg-yellow-500',
+                'from-green-50', 'to-green-100', 'bg-green-500',
+                'from-purple-50', 'to-purple-100', 'bg-purple-500',
+                'from-pink-50', 'to-pink-100', 'bg-pink-500',
+                'md:col-span-2', 'md:row-span-2',
+                'bg-gradient-to-br'
+            ],
+            theme: { extend: { fontFamily: { sans: ['Inter', 'sans-serif'] } } }
+        } 
     </script>
     <style>
         :root { --secondary-color: #34D399; } .toast { position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%); padding: 0.75rem 1.5rem; border-radius: 0.5rem; background-color: var(--secondary-color); color: white; box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1); opacity: 0; transition: opacity 0.5s ease; z-index: 9999; } .toast.show { opacity: 1; } 

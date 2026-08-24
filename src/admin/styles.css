@@ -21,7 +21,7 @@
 
     /* 侧边栏 */
     --sidebar-bg: #1e1b2e;
-    --sidebar-width: 220px;
+    --sidebar-width: 240px;
 
     /* 通用圆角 / 阴影 */
     --radius: 8px;
@@ -96,6 +96,13 @@ h4 {
     color: #92400e;
 }
 
+.login-notice-icon {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--color-warning);
+}
+
 .login-card {
     width: 380px;
     max-width: 100%;
@@ -103,7 +110,10 @@ h4 {
 }
 
 .login-logo {
-    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
     font-size: 28px;
     margin-bottom: 8px;
 }
@@ -147,7 +157,7 @@ h4 {
 .sidebar-logo {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
     padding: 18px 20px;
     font-size: 16px;
     font-weight: 600;
@@ -165,22 +175,24 @@ h4 {
 .nav-item {
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 11px 20px;
+    gap: 12px;
+    padding: 10px 16px;
     color: rgba(255, 255, 255, 0.72);
     font-size: 14px;
     white-space: nowrap;
-    transition: background 0.15s, color 0.15s;
+    border-left: 3px solid transparent;
+    transition: background 0.2s, color 0.2s, border-color 0.2s;
 }
 
 .nav-item:hover {
-    background: rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.1);
     color: #fff;
 }
 
 .nav-item.active {
-    background: var(--color-primary);
+    background: rgba(255, 255, 255, 0.08);
     color: #fff;
+    border-left-color: var(--color-primary);
 }
 
 .nav-icon {
@@ -212,14 +224,14 @@ h4 {
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-    height: 56px;
+    height: 60px;
     padding: 0 24px;
     background: var(--color-card);
     border-bottom: 1px solid var(--color-border);
 }
 
 .topbar-title {
-    font-size: 16px;
+    font-size: 18px;
     font-weight: 600;
 }
 
@@ -282,9 +294,9 @@ h4 {
 .card {
     background: var(--color-card);
     border: 1px solid var(--color-border);
-    border-radius: var(--radius);
-    box-shadow: var(--shadow);
-    padding: 20px;
+    border-radius: 12px;
+    box-shadow: 0 4px 16px rgba(17, 24, 39, 0.06), 0 1px 3px rgba(17, 24, 39, 0.04);
+    padding: 24px;
 }
 
 .card + .card {
@@ -329,7 +341,8 @@ h4 {
 .form-select {
     display: block;
     width: 100%;
-    padding: 8px 12px;
+    height: 36px;
+    padding: 0 12px;
     font-size: 14px;
     font-family: inherit;
     color: var(--color-text);
@@ -341,7 +354,9 @@ h4 {
 }
 
 .form-textarea {
+    height: auto;
     min-height: 96px;
+    padding: 8px 12px;
     resize: vertical;
     line-height: 1.6;
 }
@@ -455,6 +470,18 @@ h4 {
     color: #fff;
     background: #15803d;
     border-color: #15803d;
+}
+
+.btn-ghost {
+    background: transparent;
+    border-color: transparent;
+    color: var(--color-text-secondary);
+}
+
+.btn-ghost:hover {
+    background: var(--color-bg);
+    border-color: transparent;
+    color: var(--color-text);
 }
 
 .btn-sm {
@@ -774,14 +801,19 @@ h4 {
    空状态 / 加载中
    ============================================================ */
 .empty {
-    padding: 48px 16px;
+    padding: 48px 24px;
     text-align: center;
     color: var(--color-text-secondary);
 }
 
 .empty-icon {
     font-size: 34px;
-    margin-bottom: 8px;
+    margin-bottom: 16px;
+}
+
+.empty-icon svg {
+    opacity: 0.4;
+    color: var(--color-text-secondary);
 }
 
 .empty-text {
