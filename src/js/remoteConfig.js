@@ -90,6 +90,16 @@ export function applyRemoteConfig(remote) {
     siteConfig.videos = remote.videos;
   }
 
+  // 卡片配置：远程提供非空数组时整体替换（为空数组或 undefined 时保持静态默认，由 CardManager 兜底）
+  if (Array.isArray(remote.cards) && remote.cards.length > 0) {
+    siteConfig.cards = remote.cards;
+  }
+
+  // 留言板配置：远程提供对象时整体替换
+  if (remote.comments && typeof remote.comments === 'object' && !Array.isArray(remote.comments)) {
+    siteConfig.comments = remote.comments;
+  }
+
   // 副作用：更新页面标题
   if (siteConfig.site && siteConfig.site.title) {
     document.title = siteConfig.site.title;

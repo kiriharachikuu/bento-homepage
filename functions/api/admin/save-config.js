@@ -2,7 +2,7 @@
  * POST /api/admin/save-config
  * 保存站点配置：按模块净化后整体替换对应顶层 key，
  * 并创建版本快照与操作日志。
- * 请求体：{ modules: { site?, user?, socialLinks?, contactText?, contactButtonLink?, musicPlayer?, beian?, videoSync? }, note?: string }
+ * 请求体：{ modules: { site?, user?, socialLinks?, contactText?, contactButtonLink?, musicPlayer?, beian?, videoSync?, cards?, comments? }, note?: string }
  */
 import { json, error, runHandler } from '../../lib/response.js';
 import { assertKV } from '../../lib/kv.js';
@@ -12,18 +12,26 @@ import { createVersion } from '../../lib/version.js';
 import { getSiteConfig, saveSiteConfig } from '../../lib/videos.js';
 
 /** 对象类型模块（字段结构见 lib/defaultConfig.js 的 DEFAULT_SITE_CONFIG） */
-const OBJECT_MODULES = ['site', 'user', 'socialLinks', 'musicPlayer', 'beian', 'videoSync'];
+const OBJECT_MODULES = ['site', 'user', 'socialLinks', 'musicPlayer', 'beian', 'videoSync', 'comments'];
 /** 字符串值模块 */
 const STRING_MODULES = ['contactText', 'contactButtonLink'];
+/** 数组类型模块（整体替换，逐条净化后保留数组结构） */
+const ARRAY_MODULES = ['cards'];
 /** 全部已知模块名 */
-const KNOWN_MODULES = new Set([...OBJECT_MODULES, ...STRING_MODULES]);
+const KNOWN_MODULES = new Set([...OBJECT_MODULES, ...STRING_MODULES, ...ARRAY_MODULES]);
 
 /** 常规字段长度上限（字符，约 100KB） */
 const FIELD_LIMIT = 100 * 1024;
 /** 富文本字段长度上限（字符，约 200KB） */
 const RICH_TEXT_LIMIT = 200 * 1024;
 /** 允许富文本长度的字段名 */
-const RICH_TEXT_FIELDS = new Set(['learnMoreContent', 'description', 'contactText']);
+const RICH_TEXT_FIELDS = new Set(['learnMoreContent', 'description', 'contactText', 'content']);
+/** 单张卡片配置的大小上限（字符，约 50KB）—— 防止图标 SVG 或富文本内容过大 */
+const CARD_CONFIG_LIMIT = 50 * 1024;
+/** 卡片数组最大条数（防止滥用） */
+const MAX_CARDS = 100;
+/** 评论列表最大条数 */
+const MAX_COMMENTS = 200;
 
 /**
  * 判断是否为普通对象（非 null、非数组）
@@ -77,6 +85,74 @@ function sanitizeObjectModule(name, mod) {
       }
     }
   }
+  if (name === 'comments') {
+    // carouselInterval 规范化为整数（毫秒，最小值 1000）
+    if (mod.carouselInterval !== undefined && mod.carouselInterval !== null) {
+      const n = Number(mod.carouselInterval);
+      if (Number.isFinite(n) && n >= 1000) {
+        out.carouselInterval = Math.trunc(n);
+      } else {
+        delete out.carouselInterval;
+      }
+    }
+    // list 规范化为评论条目数组
+    if (Array.isArray(mod.list)) {
+      const list = [];
+      for (const rawItem of mod.list) {
+        if (!rawItem || typeof rawItem !== 'object') continue;
+        const text = String(rawItem.text || '').trim().slice(0, FIELD_LIMIT);
+        const date = String(rawItem.date || '').trim().slice(0, 50);
+        if (text && list.length < MAX_COMMENTS) {
+          list.push({ text, date });
+        }
+      }
+      out.list = list;
+    }
+  }
+  return out;
+}
+
+/**
+ * 净化卡片数组模块：每条卡片保留 id/type/order/enabled/config 结构，
+ * config 整体 JSON 序列化后按上限截断再解析，防止超大 SVG/HTML 注入。
+ * @param {Array} arr 提交的卡片数组
+ * @returns {Array}
+ */
+function sanitizeCardsModule(arr) {
+  if (!Array.isArray(arr)) return [];
+  const out = [];
+  for (const raw of arr) {
+    if (!raw || typeof raw !== 'object') continue;
+    const id = String(raw.id || '').trim().slice(0, 100);
+    const type = String(raw.type || '').trim().slice(0, 50);
+    if (!id || !type) continue;
+    const order = Number(raw.order);
+    const card = {
+      id,
+      type,
+      order: Number.isFinite(order) ? Math.trunc(order) : out.length + 1,
+      enabled: raw.enabled !== false // 默认为 true
+    };
+    // config：深拷贝后整体大小限制，防止单个卡片配置过大
+    if (raw.config && typeof raw.config === 'object' && !Array.isArray(raw.config)) {
+      try {
+        const json = JSON.stringify(raw.config);
+        if (json.length > CARD_CONFIG_LIMIT) {
+          // 超限则丢弃 config，使用模板默认值兜底
+          card.config = {};
+        } else {
+          card.config = JSON.parse(json);
+        }
+      } catch {
+        card.config = {};
+      }
+    } else {
+      card.config = {};
+    }
+    if (out.length < MAX_CARDS) {
+      out.push(card);
+    }
+  }
   return out;
 }
 
@@ -100,7 +176,7 @@ export function onRequestPost(context) {
       return error(400, 'BAD_REQUEST', 'modules 必须为非空对象');
     }
 
-    // 逐模块净化：未知 key 忽略；对象模块只接受对象，字符串模块只接受字符串
+    // 逐模块净化：未知 key 忽略；对象模块只接受对象，字符串模块只接受字符串，数组模块只接受数组
     const sanitized = {};
     const changedModules = [];
     for (const key of Object.keys(modules)) {
@@ -109,6 +185,13 @@ export function onRequestPost(context) {
       if (STRING_MODULES.includes(key)) {
         if (typeof value !== 'string') continue;
         sanitized[key] = toStringField(key, value);
+      } else if (ARRAY_MODULES.includes(key)) {
+        if (!Array.isArray(value)) continue;
+        if (key === 'cards') {
+          sanitized[key] = sanitizeCardsModule(value);
+        } else {
+          sanitized[key] = value;
+        }
       } else if (isPlainObject(value)) {
         sanitized[key] = sanitizeObjectModule(key, value);
       } else {
