@@ -53,6 +53,119 @@ const STATUS_BADGES = {
 const COVER_PLACEHOLDER =
     "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='24'%3E%3Crect width='40' height='24' fill='%23e5e7eb'/%3E%3C/svg%3E";
 
+/**
+ * 智能解析任意格式的 Cookie 字符串，归一化为标准的 key=value; key2=value2; 形式。
+ * 支持的输入格式：
+ *   1. 标准格式：SESSDATA=xxx; bili_jct=yyy
+ *   2. Chrome DevTools 表格复制（Tab 分隔，多列）：name\tvalue\t\t...
+ *   3. Firefox DevTools 表格复制
+ *   4. Netscape 格式（以 #开头的行 + 7 列 Tab 分隔）
+ *   5. JSON 格式（[{name,value}, ...] 或 { name: value, ... }）
+ *   6. 每行一个 key=value
+ * @param {string} raw 原始粘贴内容
+ * @returns {string} 标准化后的 cookie 字符串，空内容返回 ''
+ */
+function normalizeCookieString(raw) {
+    if (!raw || typeof raw !== 'string') return '';
+    const trimmed = raw.trim();
+    if (!trimmed) return '';
+
+    const pairs = new Map(); // 用 Map 去重，后出现的覆盖先出现的
+
+    // 格式 5：JSON 数组或对象
+    if (trimmed.startsWith('[')) {
+        try {
+            const arr = JSON.parse(trimmed);
+            if (Array.isArray(arr)) {
+                for (const item of arr) {
+                    if (item && typeof item === 'object') {
+                        const name = String(item.name || '').trim();
+                        const value = String(item.value !== undefined ? item.value : '');
+                        if (name) pairs.set(name, value);
+                    }
+                }
+                if (pairs.size > 0) return [...pairs.entries()].map(([k, v]) => `${k}=${v}`).join('; ');
+            }
+        } catch { /* 不是合法 JSON，继续走其他解析路径 */ }
+    }
+    if (trimmed.startsWith('{')) {
+        try {
+            const obj = JSON.parse(trimmed);
+            if (obj && typeof obj === 'object' && !Array.isArray(obj)) {
+                for (const [k, v] of Object.entries(obj)) {
+                    pairs.set(k, String(v));
+                }
+                if (pairs.size > 0) return [...pairs.entries()].map(([k, v]) => `${k}=${v}`).join('; ');
+            }
+        } catch { /* 不是合法 JSON */ }
+    }
+
+    // 按行切分处理
+    const lines = trimmed.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+
+    // 格式 4：Netscape / HTTP Cookie 文件格式（以 # 开头的是注释，7 列数据）
+    const isNetscape = lines.some((l) => l.startsWith('# Netscape') || l.startsWith('# HTTP Cookie'));
+    if (isNetscape) {
+        for (const line of lines) {
+            if (line.startsWith('#') || !line) continue;
+            const cols = line.split('\t');
+            if (cols.length >= 7) {
+                // Netscape 列顺序：domain\tflag\tpath\tsecure\texpires\tname\tvalue
+                const name = cols[5].trim();
+                const value = cols[6].trim();
+                if (name) pairs.set(name, value);
+            }
+        }
+        if (pairs.size > 0) return [...pairs.entries()].map(([k, v]) => `${k}=${v}`).join('; ');
+    }
+
+    // 格式 2/3：DevTools 表格复制（Tab 分隔的多列表格，第一列是 name，第二列是 value）
+    // 特征：多数行都有 >=2 个 Tab 分隔段，且第一列看起来像 cookie 名
+    const hasTabColumns = lines.every((l) => l.includes('\t'));
+    if (hasTabColumns) {
+        // 可能有表头行，先找看起来像数据的行
+        let found = false;
+        for (const line of lines) {
+            const cols = line.split('\t').map((c) => c.trim());
+            if (cols.length < 2) continue;
+            const name = cols[0];
+            const value = cols[1];
+            // 跳过表头行：name 列如果是 "Name" / "名称" / "name" 等关键字且第二列也像标题
+            const headerKeywords = /^(name|名称|名字|cookie名|键)$/i;
+            if (headerKeywords.test(name) && /^(value|值|内容|cookie值)$/i.test(value)) continue;
+            // cookie 名必须是非空、不含空格、不含 =
+            if (!name || name.includes('=') || /\s/.test(name)) continue;
+            pairs.set(name, value);
+            found = true;
+        }
+        if (found) return [...pairs.entries()].map(([k, v]) => `${k}=${v}`).join('; ');
+    }
+
+    // 格式 1/6：标准 key=value; 格式，或每行一个
+    for (const line of lines) {
+        // 跳过注释
+        if (line.startsWith('#') || line.startsWith('//')) continue;
+        // 按 ; 拆分
+        const parts = line.split(';');
+        for (const part of parts) {
+            const trimmedPart = part.trim();
+            if (!trimmedPart) continue;
+            const eqIndex = trimmedPart.indexOf('=');
+            if (eqIndex <= 0) continue;
+            const name = trimmedPart.slice(0, eqIndex).trim();
+            const value = trimmedPart.slice(eqIndex + 1).trim();
+            if (!name || /\s/.test(name)) continue;
+            pairs.set(name, value);
+        }
+    }
+
+    if (pairs.size > 0) {
+        return [...pairs.entries()].map(([k, v]) => `${k}=${v}`).join('; ');
+    }
+    // 全部解析失败，返回原字符串
+    return trimmed;
+}
+
 /** HTML 转义，防止视频标题 / 描述等外部内容注入破坏页面结构 */
 function escapeHtml(text) {
     return String(text)
@@ -138,6 +251,8 @@ export function render(container) {
     let items = [];
     /** 同步设置输入值（均为字符串） */
     const settings = { mid: '', maxCount: '', biliCookie: '' };
+    /** 服务端是否已有 cookie 配置（用于判断是否修改过 — 掩码状态下未编辑就不覆盖原值） */
+    let cookieHasServerValue = false;
     /** 来源筛选：'all' | 'sync' | 'manual' */
     let sourceFilter = 'all';
     /** 是否显示已隐藏条目 */
@@ -229,10 +344,10 @@ export function render(container) {
             <div class="form-group" style="margin:14px 0 0;">
                 <label class="form-label" for="video-bili-cookie">B 站 Cookie（可选，大幅提高同步成功率）</label>
                 <textarea class="form-input" id="video-bili-cookie" rows="3"
-                    placeholder="浏览器 F12 → Application → Cookies → bilibili.com → 复制全部 cookie 值，格式如 SESSDATA=xxx; bili_jct=yyy; ...&#10;留空则使用匿名身份（风控概率高，可能同步失败）"
+                    placeholder="浏览器 F12 → Application → Cookies → bilibili.com → 全选复制后直接粘贴即可&#10;支持 DevTools 表格格式、Netscape 格式、标准 key=value; 格式，粘贴时自动转换&#10;留空则使用匿名身份（风控概率高，可能同步失败）"
                     style="font-family:Consolas,Menlo,monospace;font-size:12px;">${escapeHtml(settings.biliCookie)}</textarea>
                 <div class="form-hint" style="margin-top:6px;">
-                    登录态 Cookie 可绕过大部分风控，建议配置。Cookie 安全存储于服务端，不会返回到前端。
+                    登录态 Cookie 可绕过大部分风控，建议配置。Cookie 仅存储于服务端，页面上只显示是否已配置。
                     过期后（通常 2-3 个月）重新粘贴即可。
                     <button type="button" class="link-btn" data-role="clear-cookie" style="margin-left:8px;">清空 Cookie</button>
                 </div>
@@ -401,8 +516,27 @@ ${listCardHtml()}`;
         const cookieInput = container.querySelector('#video-bili-cookie');
         if (cookieInput) {
             cookieInput.addEventListener('input', () => {
-                settings.biliCookie = cookieInput.value;
+                // 如果当前是掩码值（服务端已有配置），用户输入时直接清空，让用户从头输入
+                if (cookieHasServerValue && cookieInput.value.startsWith('***')) {
+                    cookieInput.value = '';
+                    settings.biliCookie = '';
+                } else {
+                    settings.biliCookie = cookieInput.value;
+                }
                 guard.setDirty(true);
+            });
+            // 粘贴时智能解析：支持 DevTools 表格格式、Netscape 格式、JSON 格式等，自动转成 key=value; 形式
+            cookieInput.addEventListener('paste', (event) => {
+                const text = (event.clipboardData || window.clipboardData).getData('text');
+                if (!text) return;
+                const normalized = normalizeCookieString(text);
+                if (normalized && normalized !== text.trim()) {
+                    event.preventDefault();
+                    cookieInput.value = normalized;
+                    settings.biliCookie = normalized;
+                    guard.setDirty(true);
+                    toast('已自动识别并转换 Cookie 格式', 'success');
+                }
             });
         }
         const clearCookieBtn = container.querySelector('[data-role="clear-cookie"]');
@@ -498,6 +632,8 @@ ${listCardHtml()}`;
                     videoSync.biliCookie === null || videoSync.biliCookie === undefined
                         ? ''
                         : String(videoSync.biliCookie);
+                // 判断服务端是否已配置 cookie（返回的是掩码说明已有值，空白说明未配置）
+                cookieHasServerValue = settings.biliCookie.startsWith('***');
             }
             renderPage();
         } catch (err) {
@@ -557,7 +693,10 @@ ${listCardHtml()}`;
     async function handleSaveSettings() {
         const mid = String(settings.mid || '').trim();
         const maxCount = Number(settings.maxCount);
-        const biliCookie = String(settings.biliCookie || '').trim();
+        const rawCookie = String(settings.biliCookie || '').trim();
+        // cookie 未被用户修改（仍是掩码字符串）就不提交该字段，保持服务端原值
+        const cookieUnchanged = cookieHasServerValue && rawCookie.startsWith('***');
+        const biliCookie = cookieUnchanged ? null : rawCookie;
 
         if (!/^\d+$/.test(mid)) {
             toast('请输入有效的 B 站 UID（纯数字）', 'error');
@@ -568,7 +707,14 @@ ${listCardHtml()}`;
             return;
         }
 
-        const cookieNote = biliCookie ? '（已配置 B 站 Cookie）' : '（未配置 B 站 Cookie，可能同步失败）';
+        let cookieNote;
+        if (cookieUnchanged) {
+            cookieNote = '（保持原有 Cookie 配置）';
+        } else if (biliCookie) {
+            cookieNote = '（已更新 B 站 Cookie）';
+        } else {
+            cookieNote = '（已清空 B 站 Cookie，可能同步失败）';
+        }
         const ok = await confirmDialog({
             title: '保存同步设置',
             message: `将保存：B站 UID ${mid}，最大同步 ${maxCount} 条${cookieNote}。修改在下次同步时生效，确定保存吗？`,
@@ -577,9 +723,22 @@ ${listCardHtml()}`;
         if (!ok) return;
 
         try {
+            const videoSyncPayload = { mid, maxCount };
+            if (biliCookie !== null) {
+                // 只有修改过才提交（清空也会提交空字符串）
+                videoSyncPayload.biliCookie = biliCookie;
+            }
             await post('/api/admin/save-config', {
-                modules: { videoSync: { mid, maxCount, biliCookie } }
+                modules: { videoSync: videoSyncPayload }
             });
+            // 保存成功后，刷新掩码状态
+            if (biliCookie) {
+                cookieHasServerValue = true;
+                settings.biliCookie = '***已配置***';
+            } else if (biliCookie === '') {
+                cookieHasServerValue = false;
+                settings.biliCookie = '';
+            }
             guard.setDirty(false);
             toast('同步设置已保存', 'success');
         } catch (err) {

@@ -1,4 +1,5 @@
 import siteConfig from '../config.js';
+import { openVideoPlayer, extractBvid } from './VideoPlayerModal.js';
 
 /**
  * 视频列表弹窗组件
@@ -86,21 +87,28 @@ export class VideoListModal {
     ` : '';
     
     return `
-      <div class="bg-card rounded-2xl shadow-lg p-4 fade-in" style="animation-delay: ${index * 0.1}s;">
-        <div class="rounded-xl w-full h-48 mb-4 overflow-hidden relative" style="background-color: var(--gray-200);">
+      <div class="bg-card rounded-2xl shadow-lg p-4 fade-in video-list-item" style="animation-delay: ${index * 0.1}s;" data-video-url="${video.url || ''}" data-video-title="${video.title || ''}">
+        <div class="rounded-xl w-full h-48 mb-4 overflow-hidden relative video-list-cover cursor-pointer" style="background-color: var(--gray-200);">
           <img src="${video.cover}" class="w-full h-full object-cover transition-transform duration-500 hover:scale-105">
+          <div class="absolute inset-0 flex items-center justify-center bg-black/0 hover:bg-black/20 transition-all duration-200 group">
+            <div class="w-12 h-12 rounded-full bg-white/90 flex items-center justify-center shadow-lg opacity-0 group-hover:opacity-100 transition-opacity">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-gray-900 ml-0.5" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M8 5v14l11-7z"/>
+              </svg>
+            </div>
+          </div>
           ${badgeHTML}
         </div>
         <div class="flex justify-between items-center">
-          <div>
+          <div class="min-w-0">
             <h3 class="font-bold text-lg line-clamp-2">${video.title}</h3>
             <p class="text-sm line-clamp-2" style="color: var(--gray-600);">${video.description}</p>
           </div>
-          <a href="${video.url}" target="_blank" rel="noopener noreferrer" class="p-2 bg-gray-900 text-white rounded-full hover:bg-gray-700 inline-flex items-center justify-center transition-colors">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+          <button type="button" class="video-list-play p-2 bg-gray-900 text-white rounded-full hover:bg-gray-700 inline-flex items-center justify-center transition-colors flex-shrink-0">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M8 5v14l11-7z"/>
             </svg>
-          </a>
+          </button>
         </div>
       </div>
     `;
@@ -128,6 +136,21 @@ export class VideoListModal {
     
     // 一次性添加到DOM
     videoListContainer.appendChild(fragment);
+
+    // 绑定点击事件（事件委托）
+    videoListContainer.addEventListener('click', (e) => {
+      const item = e.target.closest('.video-list-item');
+      if (!item) return;
+      const url = item.dataset.videoUrl;
+      const title = item.dataset.videoTitle || '视频播放';
+      if (!url) return;
+      const bvid = extractBvid(url);
+      if (bvid) {
+        openVideoPlayer({ bvid, title });
+      } else {
+        window.open(url, '_blank', 'noopener,noreferrer');
+      }
+    });
   }
   
   /**

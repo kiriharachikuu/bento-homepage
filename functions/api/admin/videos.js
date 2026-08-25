@@ -22,13 +22,23 @@ export async function onRequestGet(context) {
       getSiteConfig(kv)
     ]);
 
+    // videoSync 信息：剔除 biliCookie 敏感字段（只返回是否已配置，不返回明文）
+    let videoSyncInfo = null;
+    if (siteConfig && siteConfig.videoSync) {
+      const { biliCookie, ...rest } = siteConfig.videoSync;
+      videoSyncInfo = {
+        ...rest,
+        biliCookie: biliCookie ? '***已配置***' : ''
+      };
+    }
+
     return json({
       manual: videoData.manual,
       synced: videoData.synced,
       overrides,
       display: mergeVideoList(videoData, overrides),
       syncState,
-      videoSync: siteConfig && siteConfig.videoSync ? siteConfig.videoSync : null
+      videoSync: videoSyncInfo
     });
   });
 }

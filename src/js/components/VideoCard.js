@@ -1,8 +1,10 @@
 import { BaseCard } from './BaseCard.js';
 import siteConfig from '../config.js';
+import { openVideoPlayer, extractBvid } from './VideoPlayerModal.js';
 
 /**
  * 视频作品卡片
+ * 点击封面或播放按钮在弹窗中打开 B 站播放器，而不是跳转新页面
  */
 export class VideoCard extends BaseCard {
   /**
@@ -75,8 +77,16 @@ export class VideoCard extends BaseCard {
     ` : '';
     
     return `
-      <div class="flex-1 min-h-0 rounded-xl overflow-hidden relative bg-gray-200">
+      <div class="flex-1 min-h-0 rounded-xl overflow-hidden relative bg-gray-200 video-cover-wrap cursor-pointer">
         <img src="${this.video.cover}" class="w-full h-full object-cover" loading="lazy" alt="${this.video.title}" />
+        <!-- 中央播放按钮 -->
+        <div class="video-play-btn absolute inset-0 flex items-center justify-center bg-black/0 hover:bg-black/20 transition-all duration-200 group">
+          <div class="w-14 h-14 rounded-full bg-white/90 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 text-gray-900 ml-1" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M8 5v14l11-7z"/>
+            </svg>
+          </div>
+        </div>
         ${badgeHTML}
       </div>
       <div class="flex justify-between items-end gap-3 flex-shrink-0">
@@ -84,12 +94,41 @@ export class VideoCard extends BaseCard {
           <h3 class="font-bold text-base truncate">${this.video.title}</h3>
           <p class="text-sm truncate" style="color: var(--gray-600)">${this.video.description || ''}</p>
         </div>
-        <a href="${this.video.url}" target="_blank" rel="noopener noreferrer" class="p-2 bg-gray-900 text-white rounded-full hover:bg-gray-700 inline-flex items-center justify-center flex-shrink-0">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+        <button type="button" class="video-play-action p-2 bg-gray-900 text-white rounded-full hover:bg-gray-700 inline-flex items-center justify-center flex-shrink-0">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M8 5v14l11-7z"/>
           </svg>
-        </a>
+        </button>
       </div>
     `;
+  }
+
+  /**
+   * 卡片挂载后绑定点击事件
+   */
+  onMount() {
+    if (!this.video) return;
+
+    const cardEl = document.getElementById(this.config.id);
+    if (!cardEl) return;
+
+    const bvid = extractBvid(this.video.url);
+
+    const playBtn = cardEl.querySelector('.video-play-action');
+    const cover = cardEl.querySelector('.video-cover-wrap');
+
+    const handler = (e) => {
+      e.preventDefault();
+      if (bvid) {
+        // 有 BV 号：弹窗播放
+        openVideoPlayer({ bvid, title: this.video.title });
+      } else if (this.video.url) {
+        // 没有 BV 号：跳转到原链接
+        window.open(this.video.url, '_blank', 'noopener,noreferrer');
+      }
+    };
+
+    if (playBtn) playBtn.addEventListener('click', handler);
+    if (cover) cover.addEventListener('click', handler);
   }
 }

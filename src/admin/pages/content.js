@@ -1,13 +1,13 @@
 /**
  * 内容编辑页（#/content）
  *
- * 页内 tab 分四组编辑：
+ * 页内 tab 分四组编辑，每组独立保存（避免一键保存跨 tab 误覆盖）：
  * 1. 个人信息：user.name / user.title / user.description（富文本）/ user.avatar / user.learnMoreLink
  * 2. 关于我长文：user.learnMoreContent（富文本，内容较长单独成 tab）
- * 3. 社交与联系：socialLinks 四项 / contactText / contactButtonLink
- * 4. 音乐与留言：musicPlayer.playlistId / comments.carouselInterval / comments.list
+ * 3. 社交与联系：socialLinks（四项） + contactText + contactButtonLink（两张卡片分别保存）
+ * 4. 音乐与留言：musicPlayer.playlistId + comments.carouselInterval + comments.list
  *
- * 保存时一次提交 modules: { user, socialLinks, contactText, contactButtonLink, musicPlayer, comments }。
+ * 保存时分别提交对应模块，互不干扰。路由离开时的未保存守卫仍为全局粒度。
  *
  * 富文本字段组件（createRichTextField）说明：
  * - 默认富文本模式：页面加载时直接创建 wangEditor，所见即所得编辑
@@ -18,7 +18,7 @@
  */
 import { createEditor, createToolbar } from '@wangeditor/editor';
 import '@wangeditor/editor/dist/css/style.css';
-import { toast, confirmDialog, createUnsavedGuard, registerGuard, clearGuard, showLoading, hideLoading } from '../ui.js';
+import { toast, confirmDialog, createUnsavedGuard, registerGuard, showLoading, hideLoading } from '../ui.js';
 import { icon } from '../icons.js';
 import { escapeHtml, loadSiteConfig, saveConfigModules, uploadImage, createImageField, watchFormChanges } from './_shared.js';
 
@@ -276,6 +276,10 @@ export function render(container) {
                     <input type="text" class="form-input" data-field="learnMoreLink"
                            placeholder="点击用户卡片「了解更多」按钮跳转的链接" />
                 </div>
+                <div class="form-footer">
+                    <button type="button" class="btn btn-primary" data-save="profile">保存个人信息</button>
+                    <span class="form-hint">保存模块：user（昵称、头衔、简介、头像、了解更多链接）</span>
+                </div>
             </div>
         </div>
 
@@ -284,6 +288,10 @@ export function render(container) {
             <div class="card">
                 <div class="card-title">关于我长文 <span class="card-tip">「了解更多」弹窗中的完整介绍，支持 HTML 与 Tailwind class</span></div>
                 <div data-field-group="learnMoreContent"></div>
+                <div class="form-footer">
+                    <button type="button" class="btn btn-primary" data-save="learnmore">保存长文</button>
+                    <span class="form-hint">保存模块：user.learnMoreContent</span>
+                </div>
             </div>
         </div>
 
@@ -307,6 +315,10 @@ export function render(container) {
                     <label class="form-label">QQ 群链接</label>
                     <input type="text" class="form-input" data-field="qqGroup" placeholder="https://qm.qq.com/xxxx" />
                 </div>
+                <div class="form-footer">
+                    <button type="button" class="btn btn-primary" data-save="social">保存社交链接</button>
+                    <span class="form-hint">保存模块：socialLinks</span>
+                </div>
             </div>
             <div class="card">
                 <div class="card-title">联系方式 <span class="card-tip">联系方式卡片的多行文本与按钮链接</span></div>
@@ -321,6 +333,10 @@ export function render(container) {
                     <input type="text" class="form-input" data-field="contactButtonLink"
                            placeholder="联系方式卡片「Read more」按钮跳转的链接" />
                     <div class="form-hint">保存为字符串模块（contactButtonLink）</div>
+                </div>
+                <div class="form-footer">
+                    <button type="button" class="btn btn-primary" data-save="contact">保存联系方式</button>
+                    <span class="form-hint">保存模块：contactText、contactButtonLink</span>
                 </div>
             </div>
         </div>
@@ -351,15 +367,9 @@ export function render(container) {
                 <div data-role="comment-list" class="space-y-3"></div>
                 <div class="form-footer">
                     <button type="button" class="btn" data-role="add-comment">+ 添加一条</button>
+                    <button type="button" class="btn btn-primary" data-save="music-comments">保存音乐与留言</button>
+                    <span class="form-hint">保存模块：musicPlayer、comments</span>
                 </div>
-            </div>
-        </div>
-
-        <!-- 保存（跨 tab 全量提交） -->
-        <div class="card">
-            <div class="form-footer" style="margin-top:0;">
-                <button type="button" class="btn btn-primary" data-role="save">保存全部修改</button>
-                <span class="form-hint">一次性提交 user、socialLinks、contactText、contactButtonLink、musicPlayer、comments 六个模块</span>
             </div>
         </div>`;
 
@@ -416,45 +426,105 @@ export function render(container) {
     });
     container.querySelector('[data-field-group="learnMoreContent"]').appendChild(learnMoreField.el);
 
-    /** 收集全部模块（跨 tab 全量提交；富文本字段原样取值不重排） */
-    function collectModules() {
-        const commentItems = [];
+    /** 收集留言条目 */
+    function collectCommentsList() {
+        const items = [];
         container.querySelectorAll('[data-comment-item]').forEach((item) => {
             const text = item.querySelector('[data-comment-text]').value.trim();
             const date = item.querySelector('[data-comment-date]').value.trim();
-            if (text) {
-                commentItems.push({ text, date });
-            }
+            if (text) items.push({ text, date });
         });
-        const intervalVal = parseInt(field('carouselInterval').value, 10);
-        const carouselInterval = isNaN(intervalVal) || intervalVal < 1000 ? 5000 : intervalVal;
-
-        return {
-            user: {
-                name: field('name').value.trim(),
-                title: field('title').value.trim(),
-                description: descriptionField.getValue(),
-                avatar: avatarField.getValue(),
-                learnMoreLink: field('learnMoreLink').value.trim(),
-                learnMoreContent: learnMoreField.getValue()
-            },
-            socialLinks: {
-                bilibili: field('bilibili').value.trim(),
-                netease: field('netease').value.trim(),
-                weibo: field('weibo').value.trim(),
-                qqGroup: field('qqGroup').value.trim()
-            },
-            contactText: field('contactText').value.trim(),
-            contactButtonLink: field('contactButtonLink').value.trim(),
-            musicPlayer: {
-                playlistId: field('playlistId').value.trim()
-            },
-            comments: {
-                carouselInterval,
-                list: commentItems
-            }
-        };
+        return items;
     }
+
+    /**
+     * 按模块名收集对应的数据
+     * @param {string} moduleKey 模块标识：profile | learnmore | social | contact | music-comments
+     * @returns {object} 传给 saveConfigModules 的 modules 对象
+     */
+    function collectModule(moduleKey) {
+        switch (moduleKey) {
+            case 'profile':
+                return {
+                    user: {
+                        name: field('name').value.trim(),
+                        title: field('title').value.trim(),
+                        description: descriptionField.getValue(),
+                        avatar: avatarField.getValue(),
+                        learnMoreLink: field('learnMoreLink').value.trim()
+                    }
+                };
+            case 'learnmore':
+                return {
+                    user: { learnMoreContent: learnMoreField.getValue() }
+                };
+            case 'social':
+                return {
+                    socialLinks: {
+                        bilibili: field('bilibili').value.trim(),
+                        netease: field('netease').value.trim(),
+                        weibo: field('weibo').value.trim(),
+                        qqGroup: field('qqGroup').value.trim()
+                    }
+                };
+            case 'contact':
+                return {
+                    contactText: field('contactText').value.trim(),
+                    contactButtonLink: field('contactButtonLink').value.trim()
+                };
+            case 'music-comments': {
+                const intervalVal = parseInt(field('carouselInterval').value, 10);
+                const carouselInterval = isNaN(intervalVal) || intervalVal < 1000 ? 5000 : intervalVal;
+                return {
+                    musicPlayer: { playlistId: field('playlistId').value.trim() },
+                    comments: { carouselInterval, list: collectCommentsList() }
+                };
+            }
+            default:
+                return {};
+        }
+    }
+
+    /** 模块元信息：名称 + 说明（用于二次确认和 toast） */
+    const MODULE_META = {
+        profile: { label: '个人信息', modules: ['user'] },
+        learnmore: { label: '关于我长文', modules: ['user.learnMoreContent'] },
+        social: { label: '社交链接', modules: ['socialLinks'] },
+        contact: { label: '联系方式', modules: ['contactText', 'contactButtonLink'] },
+        'music-comments': { label: '音乐与留言', modules: ['musicPlayer', 'comments'] }
+    };
+
+    /** 独立保存某个模块 */
+    async function handleSaveModule(moduleKey, btn) {
+        const meta = MODULE_META[moduleKey];
+        if (!meta) return;
+
+        const ok = await confirmDialog({
+            title: `保存${meta.label}`,
+            message: `即将保存模块：${meta.modules.join('、')}。确定保存吗？`
+        });
+        if (!ok) return;
+
+        const originalText = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = '保存中…';
+        try {
+            await saveConfigModules(collectModule(moduleKey));
+            toast(`${meta.label}已保存`, 'success');
+            // 模块保存成功不清除全局守卫（其他 tab 可能还有未保存内容），
+            // 但可以在这里做局部脏状态标记（当前实现为全局守卫，保持不变）
+        } catch (err) {
+            toast(err.message || '保存失败', 'error');
+        } finally {
+            btn.disabled = false;
+            btn.textContent = originalText;
+        }
+    }
+
+    // 绑定所有独立保存按钮
+    container.querySelectorAll('[data-save]').forEach((btn) => {
+        btn.addEventListener('click', () => handleSaveModule(btn.dataset.save, btn));
+    });
 
     /* ---------- 留言板：条目增删渲染 ---------- */
     const commentListEl = container.querySelector('[data-role="comment-list"]');
@@ -486,30 +556,6 @@ export function render(container) {
     container.querySelector('[data-role="add-comment"]').addEventListener('click', () => {
         commentListEl.appendChild(renderCommentItem());
         markDirty();
-    });
-
-    /* ---------- 保存：二次确认后一次提交六个模块 ---------- */
-    const saveBtn = container.querySelector('[data-role="save"]');
-    saveBtn.addEventListener('click', async () => {
-        const ok = await confirmDialog({
-            title: '确认保存',
-            message: '即将保存模块：user、socialLinks、contactText、contactButtonLink、musicPlayer、comments（个人信息、关于我长文、社交与联系、音乐与留言）。确定保存吗？'
-        });
-        if (!ok) return;
-
-        saveBtn.disabled = true;
-        saveBtn.textContent = '保存中…';
-        try {
-            await saveConfigModules(collectModules());
-            toast('保存成功');
-            guard.setDirty(false);
-            clearGuard();
-        } catch (err) {
-            toast(err.message || '保存失败', 'error');
-        } finally {
-            saveBtn.disabled = false;
-            saveBtn.textContent = '保存全部修改';
-        }
     });
 
     /* ---------- 加载当前配置并回填（程序化赋值不触发脏状态） ---------- */

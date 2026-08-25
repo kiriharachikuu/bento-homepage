@@ -3,7 +3,7 @@
  * 将 B 站等来源的封面图下载后转存到腾讯云 COS，避免跨域/防盗链问题
  */
 import { cosPutBuffer } from './cos.js';
-import { getCOSEnv } from './kv.js';
+import { getCosConfig } from './cos.js';
 
 /** B 站封面域名白名单（需要转存的来源） */
 const BILI_COVER_HOSTS = ['hdslb.com', 'bilibili.com', 'biliapi.com'];
@@ -138,20 +138,37 @@ async function cacheOneCover(video, cosConfig) {
 /**
  * 批量转存视频封面到 COS
  * 失败的条目保留原 URL，不阻断整体流程
+ *
+ * 如果没有 COS 配置，则自动降级为"封面代理方案"——
+ * 把 B 站封面 URL 替换为本站代理地址 /api/cover-proxy?url=xxx
+ * 由后端服务端带 referer 下载后返回，绕过 B 站防盗链。
+ *
  * @param {Array<object>} videoList 视频列表（会就地修改 cover 字段）
  * @param {object} context EdgeOne 函数上下文（用于读取环境变量）
- * @returns {Promise<{total: number, cached: number, failed: number}>}
+ * @returns {Promise<{total: number, cached: number, failed: number, mode: 'cos'|'proxy'|'none'}>}
  */
 export async function cacheVideoCovers(videoList, context) {
-  const cosConfig = getCOSEnv(context);
-  if (!cosConfig) {
-    return { total: videoList.length, cached: 0, failed: 0, skipped: videoList.length, reason: 'no_cos_config' };
-  }
+  const cosConfig = getCosConfig(context && context.env);
 
-  // 筛选出需要转存的
+  // 筛选出需要处理的远程 B 站封面
   const targets = videoList.filter((v) => isRemoteBiliCover(v.cover));
   const skipCount = videoList.length - targets.length;
 
+  // 没有 COS 配置 → 使用封面代理方案
+  if (!cosConfig) {
+    for (const video of targets) {
+      video.cover = buildProxyUrl(video.cover);
+    }
+    return {
+      total: videoList.length,
+      cached: targets.length,
+      failed: 0,
+      skipped: skipCount,
+      mode: 'proxy'
+    };
+  }
+
+  // 有 COS → 转存到 COS
   let cached = 0;
   let failed = 0;
 
@@ -174,5 +191,20 @@ export async function cacheVideoCovers(videoList, context) {
     });
   }
 
-  return { total: videoList.length, cached, failed, skipped: skipCount };
+  return {
+    total: videoList.length,
+    cached,
+    failed,
+    skipped: skipCount,
+    mode: 'cos'
+  };
+}
+
+/**
+ * 生成本站封面代理 URL
+ * @param {string} remoteUrl 原始封面 URL
+ * @returns {string}
+ */
+function buildProxyUrl(remoteUrl) {
+  return `/api/cover-proxy?url=${encodeURIComponent(remoteUrl)}`;
 }

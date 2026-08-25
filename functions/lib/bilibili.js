@@ -56,6 +56,105 @@ export function extractBvid(url) {
 }
 
 /**
+ * 归一化 Cookie 字符串：从任意格式（DevTools 表格、Netscape、JSON、标准 key=value）
+ * 中提取 cookie 键值对，统一输出为 key=value; key2=value2 格式。
+ * 作为后端的双重保障，防止前端保存的 cookie 格式异常导致 B 站接口失败。
+ * @param {string} raw 原始 cookie 字符串
+ * @returns {string} 标准化后的 cookie 字符串
+ */
+function normalizeCookie(raw) {
+  const trimmed = String(raw || '').trim();
+  if (!trimmed) return '';
+
+  const pairs = new Map();
+
+  // 1. JSON 数组 [{name, value}, ...]
+  if (trimmed.startsWith('[')) {
+    try {
+      const arr = JSON.parse(trimmed);
+      if (Array.isArray(arr)) {
+        for (const item of arr) {
+          if (item && typeof item === 'object') {
+            const name = String(item.name || '').trim();
+            const value = String(item.value !== undefined ? item.value : '');
+            if (name) pairs.set(name, value);
+          }
+        }
+        if (pairs.size > 0) return [...pairs.entries()].map(([k, v]) => `${k}=${v}`).join('; ');
+      }
+    } catch { /* 不是 JSON，继续 */ }
+  }
+
+  // 2. JSON 对象
+  if (trimmed.startsWith('{')) {
+    try {
+      const obj = JSON.parse(trimmed);
+      if (obj && typeof obj === 'object' && !Array.isArray(obj)) {
+        for (const [k, v] of Object.entries(obj)) {
+          pairs.set(k, String(v));
+        }
+        if (pairs.size > 0) return [...pairs.entries()].map(([k, v]) => `${k}=${v}`).join('; ');
+      }
+    } catch { /* 不是 JSON，继续 */ }
+  }
+
+  const lines = trimmed.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+
+  // 3. Netscape 格式
+  const isNetscape = lines.some((l) => l.startsWith('# Netscape') || l.startsWith('# HTTP Cookie'));
+  if (isNetscape) {
+    for (const line of lines) {
+      if (line.startsWith('#') || !line) continue;
+      const cols = line.split('\t');
+      if (cols.length >= 7) {
+        const name = cols[5].trim();
+        const value = cols[6].trim();
+        if (name) pairs.set(name, value);
+      }
+    }
+    if (pairs.size > 0) return [...pairs.entries()].map(([k, v]) => `${k}=${v}`).join('; ');
+  }
+
+  // 4. DevTools 表格格式（Tab 分隔多列）
+  const hasTabColumns = lines.length > 0 && lines.every((l) => l.includes('\t'));
+  if (hasTabColumns) {
+    let found = false;
+    for (const line of lines) {
+      const cols = line.split('\t').map((c) => c.trim());
+      if (cols.length < 2) continue;
+      const name = cols[0];
+      const value = cols[1];
+      if (/^(name|名称|名字|cookie名|键)$/i.test(name) && /^(value|值|内容|cookie值)$/i.test(value)) continue;
+      if (!name || name.includes('=') || /\s/.test(name)) continue;
+      pairs.set(name, value);
+      found = true;
+    }
+    if (found) return [...pairs.entries()].map(([k, v]) => `${k}=${v}`).join('; ');
+  }
+
+  // 5. 标准 key=value; 格式或每行一个
+  for (const line of lines) {
+    if (line.startsWith('#') || line.startsWith('//')) continue;
+    const parts = line.split(';');
+    for (const part of parts) {
+      const trimmedPart = part.trim();
+      if (!trimmedPart) continue;
+      const eqIndex = trimmedPart.indexOf('=');
+      if (eqIndex <= 0) continue;
+      const name = trimmedPart.slice(0, eqIndex).trim();
+      const value = trimmedPart.slice(eqIndex + 1).trim();
+      if (!name || /\s/.test(name)) continue;
+      pairs.set(name, value);
+    }
+  }
+
+  if (pairs.size > 0) {
+    return [...pairs.entries()].map(([k, v]) => `${k}=${v}`).join('; ');
+  }
+  return trimmed;
+}
+
+/**
  * 带超时的 fetch（AbortController + setTimeout，兼容性最好）
  * @param {string} url
  * @param {object} [options] fetch 配置
@@ -538,9 +637,11 @@ export async function syncBilibiliVideos(context, kv, { username = 'unknown', ip
   if (maxCount < MIN_COUNT) maxCount = MIN_COUNT;
   if (maxCount > MAX_COUNT) maxCount = MAX_COUNT;
   // 自定义 Cookie：用户在后台粘贴的 SESSDATA 等登录态 cookie，可大幅降低风控概率
-  const customCookie = String(
+  const rawCookie = String(
     (siteConfig && siteConfig.videoSync && siteConfig.videoSync.biliCookie) || ''
   ).trim();
+  // 归一化 cookie 格式（确保是 key=value; 标准格式，防止粘贴的非标准格式导致 B 站接口失败）
+  const customCookie = normalizeCookie(rawCookie);
 
   // 构建 B 站访问身份（两个 B 站源共用；完全失败时退化为无 cookie 请求）
   // 有自定义 Cookie 时直接使用，不再自动获取 buvid/ticket（登录态 cookie 本身已含完整身份）
