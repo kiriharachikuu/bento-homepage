@@ -14,7 +14,7 @@ import { cacheVideoCovers } from './coverCache.js';
 
 /** 浏览器 UA：请求 B 站与 RSSHub 时伪装为浏览器 */
 const BROWSER_UA =
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36';
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36';
 
 /** 单次外部请求超时时间（毫秒） */
 const FETCH_TIMEOUT_MS = 15000;
@@ -27,12 +27,20 @@ const MIXIN_KEY_ENC_TAB = [
   22, 25, 54, 21, 56, 59, 6, 63, 57, 62, 11, 36, 20, 34, 44, 52
 ];
 
-/** RSSHub 公共实例基址（依次尝试） */
-const RSSHUB_BASES = ['https://rsshub.app', 'https://rsshub.rssforever.com'];
+/** RSSHub 公共实例基址（依次尝试，稳定性各不相同） */
+const RSSHUB_BASES = [
+  'https://rsshub.app',
+  'https://rsshub.rssforever.com',
+  'https://rsshub.pseudoyu.com',
+  'https://rsshub.akkocn.com',
+  'https://rsshub.1234567890123456789.xyz'
+];
 
-/** wbi 接口风控重试：总尝试次数与重试间隔（B 站风控为概率判定，间隔重试可显著提高成功率） */
-const WBI_RETRY_MAX = 4;
-const WBI_RETRY_DELAY_MS = 2000;
+/** wbi 接口风控重试：总尝试次数与基础重试间隔（含随机抖动）
+ *  B 站风控为概率判定：重试次数越多成功率越高；随机抖动可避免固定频率触发风控 */
+const WBI_RETRY_MAX = 6;
+const WBI_RETRY_DELAY_MS = 2500;
+const WBI_RETRY_JITTER_MS = 1500;
 
 /** 睡眠工具 */
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -197,6 +205,49 @@ async function fetchJson(url, headers) {
   } catch {
     throw new Error('响应非 JSON（解析失败）');
   }
+}
+
+/**
+ * 构造 B 站接口的浏览器风格请求头
+ * 尽可能模拟真实浏览器请求，降低风控拦截概率
+ * @param {object} options
+ * @param {string} options.mid - 目标 UP 主 UID（用于构造 referer）
+ * @param {string} [options.cookie] - 自定义 cookie 字符串
+ * @param {string} [options.pageType='upload'] - 页面类型：upload（投稿页）/ space（空间首页）
+ * @returns {object} headers 对象
+ */
+function buildBiliHeaders({ mid, cookie = '', pageType = 'upload' }) {
+  const referer = pageType === 'upload'
+    ? `https://space.bilibili.com/${mid}/upload/video`
+    : `https://space.bilibili.com/${mid}`;
+  const headers = {
+    'user-agent': BROWSER_UA,
+    referer,
+    origin: 'https://space.bilibili.com',
+    accept: 'application/json, text/plain, */*',
+    'accept-language': 'zh-CN,zh;q=0.9,en;q=0.8',
+    'sec-ch-ua': '"Chromium";v="128", "Not:A-Brand";v="99", "Google Chrome";v="128"',
+    'sec-ch-ua-mobile': '?0',
+    'sec-ch-ua-platform': '"Windows"',
+    'sec-fetch-dest': 'empty',
+    'sec-fetch-mode': 'cors',
+    'sec-fetch-site': 'same-site'
+  };
+  if (cookie) {
+    headers.cookie = cookie;
+  }
+  return headers;
+}
+
+/**
+ * 随机睡眠时长（基础值 + 随机抖动）
+ * @param {number} baseMs 基础毫秒
+ * @param {number} jitterMs 最大随机抖动毫秒
+ * @returns {Promise<void>}
+ */
+function sleepWithJitter(baseMs, jitterMs) {
+  const delay = baseMs + Math.floor(Math.random() * jitterMs);
+  return sleep(delay);
 }
 
 /**
@@ -401,6 +452,7 @@ function isRiskControlError(err) {
 
 /**
  * 源 1：wbi 签名接口获取视频列表（带身份 cookie 与风控重试）
+ * 每次重试都重新生成 wts 时间戳和 w_rid 签名，避免时间戳过期导致持续失败
  * @param {string} mid
  * @param {number} maxCount
  * @param {object} session fetchBiliSession 的返回值
@@ -412,35 +464,27 @@ async function fetchFromWbi(mid, maxCount, session) {
   }
   const mixinKey = getMixinKey(session.imgKey, session.subKey);
 
-  const params = {
-    mid,
-    pn: '1',
-    ps: String(maxCount),
-    order: 'pubdate',
-    platform: 'web',
-    web_location: '1550101',
-    wts: String(Math.floor(Date.now() / 1000))
-  };
-  const query = buildSortedQuery(params);
-  const wRid = md5Hex(query + mixinKey);
-
-  const headers = {
-    'user-agent': BROWSER_UA,
-    referer: `https://space.bilibili.com/${mid}/upload/video`,
-    accept: 'application/json, text/plain, */*',
-    'accept-language': 'zh-CN,zh;q=0.9'
-  };
-  if (session.cookie) {
-    headers.cookie = session.cookie;
-  }
-
-  // B 站风控为概率判定：间隔重试提高成功率；非风控错误（结构变化等）直接抛出
+  // B 站风控为概率判定：间隔重试 + 每次重签 w_rid 可显著提高成功率
   let lastError = null;
   for (let attempt = 1; attempt <= WBI_RETRY_MAX; attempt++) {
     if (attempt > 1) {
-      await sleep(WBI_RETRY_DELAY_MS);
+      await sleepWithJitter(WBI_RETRY_DELAY_MS, WBI_RETRY_JITTER_MS);
     }
     try {
+      // 每次重试都用新的时间戳重算签名（wts 是 wbi 签名的一部分，过旧会触发风控）
+      const params = {
+        mid,
+        pn: '1',
+        ps: String(maxCount),
+        order: 'pubdate',
+        platform: 'web',
+        web_location: '1550101',
+        wts: String(Math.floor(Date.now() / 1000))
+      };
+      const query = buildSortedQuery(params);
+      const wRid = md5Hex(query + mixinKey);
+      const headers = buildBiliHeaders({ mid, cookie: session.cookie });
+
       const payload = await fetchJson(
         `https://api.bilibili.com/x/space/wbi/arc/search?${query}&w_rid=${wRid}`,
         headers
@@ -459,29 +503,34 @@ async function fetchFromWbi(mid, maxCount, session) {
 }
 
 /**
- * 源 2：旧接口获取视频列表（带身份 cookie，单次尝试）
+ * 源 2：旧接口获取视频列表（带身份 cookie，风控概率性重试）
  * @param {string} mid
  * @param {number} maxCount
  * @param {object} session fetchBiliSession 的返回值
  * @returns {Promise<Array>} 规范化后的条目列表（可能为空数组）
  */
 async function fetchFromLegacy(mid, maxCount, session) {
-  const headers = {
-    'user-agent': BROWSER_UA,
-    referer: `https://space.bilibili.com/${mid}/upload/video`,
-    accept: 'application/json, text/plain, */*',
-    'accept-language': 'zh-CN,zh;q=0.9'
-  };
-  if (session.cookie) {
-    headers.cookie = session.cookie;
+  const url = `https://api.bilibili.com/x/space/arc/search?mid=${mid}&pn=1&ps=${maxCount}&order=pubdate`;
+  let lastError = null;
+  // 旧接口重试次数少一些（没签名更容易被拦，重试意义相对有限，但还是值得试试）
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    if (attempt > 1) {
+      await sleepWithJitter(WBI_RETRY_DELAY_MS, WBI_RETRY_JITTER_MS);
+    }
+    try {
+      const headers = buildBiliHeaders({ mid, cookie: session.cookie });
+      const payload = await fetchJson(url, headers);
+      return extractVlist(payload)
+        .map(normalizeVlistItem)
+        .filter(Boolean);
+    } catch (err) {
+      lastError = err;
+      if (!isRiskControlError(err)) {
+        throw err;
+      }
+    }
   }
-  const payload = await fetchJson(
-    `https://api.bilibili.com/x/space/arc/search?mid=${mid}&pn=1&ps=${maxCount}&order=pubdate`,
-    headers
-  );
-  return extractVlist(payload)
-    .map(normalizeVlistItem)
-    .filter(Boolean);
+  throw lastError;
 }
 /* ---------------------------------------------------------------- */
 /* 源 3：RSSHub 公共实例                                              */
@@ -647,14 +696,37 @@ export async function syncBilibiliVideos(context, kv, { username = 'unknown', ip
   // 有自定义 Cookie 时直接使用，不再自动获取 buvid/ticket（登录态 cookie 本身已含完整身份）
   let session = { cookie: '', imgKey: '', subKey: '' };
   if (customCookie) {
-    session = { cookie: customCookie, imgKey: '', subKey: '' };
+    // 补全指纹：如果用户粘贴的 cookie 缺少 buvid3/buvid4，自动从 finger 接口获取并补上
+    // B 站风控会校验 cookie 完整性，缺指纹字段更容易触发 -352
+    let completedCookie = customCookie;
+    try {
+      const hasBuvid3 = /buvid3=/.test(completedCookie);
+      const hasBuvid4 = /buvid4=/.test(completedCookie);
+      if (!hasBuvid3 || !hasBuvid4) {
+        const spi = await fetchJson('https://api.bilibili.com/x/frontend/finger/spi', {
+          'user-agent': BROWSER_UA,
+          referer: 'https://www.bilibili.com/'
+        });
+        const extras = [];
+        if (!hasBuvid3 && spi && spi.data && spi.data.b_3) {
+          extras.push(`buvid3=${spi.data.b_3}`);
+        }
+        if (!hasBuvid4 && spi && spi.data && spi.data.b_4) {
+          extras.push(`buvid4=${spi.data.b_4}`);
+        }
+        if (extras.length > 0) {
+          completedCookie = completedCookie + '; ' + extras.join('; ');
+        }
+      }
+    } catch {
+      /* 指纹获取失败不阻断，继续用原始 cookie */
+    }
+
+    session = { cookie: completedCookie, imgKey: '', subKey: '' };
     // 登录态下也需要 wbi key 来算签名，单独取一次
     try {
-      const nav = await fetchJson('https://api.bilibili.com/x/web-interface/nav', {
-        'user-agent': BROWSER_UA,
-        referer: 'https://www.bilibili.com/',
-        cookie: customCookie
-      });
+      const navHeaders = buildBiliHeaders({ mid, cookie: completedCookie, pageType: 'space' });
+      const nav = await fetchJson('https://api.bilibili.com/x/web-interface/nav', navHeaders);
       const wbiImg = nav && nav.data && nav.data.wbi_img;
       if (wbiImg) {
         session.imgKey = keyFromImgUrl(wbiImg.img_url);

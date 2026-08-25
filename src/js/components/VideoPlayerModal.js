@@ -1,6 +1,6 @@
 /**
  * B 站视频播放弹窗（单例）
- * 点击视频卡片时打开，内嵌 B 站 blackboard 播放器
+ * 点击视频卡片时打开，内嵌 B 站 newplayer 样式播放器（通过本站代理绕过 X-Frame-Options）
  */
 
 let overlayEl = null;
@@ -71,7 +71,9 @@ export function openVideoPlayer({ bvid, title = '视频播放' }) {
   if (!bvid) return;
   ensureModal();
 
-  const playerUrl = `https://www.bilibili.com/blackboard/newplayer.html?crossDomain=true&bvid=${bvid}&as_wide=1&page=0&autoplay=1&poster=1`;
+  // 通过本站 /api/bili-player 代理 B 站 newplayer 播放器页面
+  // 后端会移除 X-Frame-Options，使 iframe 可以正常嵌入 newplayer 样式的播放器
+  const playerUrl = `/api/bili-player?bvid=${bvid}&page=1&autoplay=1`;
 
   const titleEl = modalEl.querySelector('#video-player-title');
   const contentEl = modalEl.querySelector('#video-player-content');
@@ -86,16 +88,8 @@ export function openVideoPlayer({ bvid, title = '视频播放' }) {
           frameborder="0"
           allow="autoplay; fullscreen; picture-in-picture"
           allowfullscreen
-          scrolling="no"
-          sandbox="allow-scripts allow-same-origin allow-popups allow-forms">
+          scrolling="no">
         </iframe>
-      </div>
-      <div class="mt-3 text-center">
-        <a href="https://www.bilibili.com/video/${bvid}" target="_blank" rel="noopener noreferrer"
-           class="text-sm text-gray-500 hover:text-gray-700 underline"
-           style="color: var(--gray-500);">
-          在 B 站打开
-        </a>
       </div>
     `;
   }
