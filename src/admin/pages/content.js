@@ -82,7 +82,8 @@ function createRichTextField({
         if (onChange) onChange();
     });
 
-    /** 切换到富文本模式（直接切换，不弹确认） */
+    /** 切换到富文本模式（直接切换，不弹确认）。
+     *  初始化失败时自动降级为源码模式并提示，不阻断整个页面。 */
     function switchToRich() {
         if (editor) return;
         const html = sourceArea.value;
@@ -91,43 +92,58 @@ function createRichTextField({
         sourceArea.hidden = true;
         wrap.hidden = false;
 
-        editor = createEditor({
-            selector: '#' + editorId,
-            html,
-            config: {
-                placeholder,
-                MENU_CONF: {
-                    uploadImage: {
-                        // 自定义上传：presign 预签名后 PUT 直传 COS
-                        async customUpload(file, insertFn) {
-                            try {
-                                const url = await uploadImage(file);
-                                insertFn(url, '', '');
-                            } catch (err) {
-                                toast(err.message || '图片上传失败', 'error');
+        try {
+            editor = createEditor({
+                selector: '#' + editorId,
+                html,
+                config: {
+                    placeholder,
+                    MENU_CONF: {
+                        uploadImage: {
+                            // 自定义上传：presign 预签名后 PUT 直传 COS
+                            async customUpload(file, insertFn) {
+                                try {
+                                    const url = await uploadImage(file);
+                                    insertFn(url, '', '');
+                                } catch (err) {
+                                    toast(err.message || '图片上传失败', 'error');
+                                }
                             }
                         }
+                    },
+                    onChange: () => {
+                        if (onChange) onChange();
                     }
-                },
-                onChange: () => {
-                    if (onChange) onChange();
                 }
-            }
-        });
-        toolbar = createToolbar({ editor, selector: '#' + toolbarId, config: {
-            toolbarKeys: [
-                'headerSelect',
-                'bold', 'italic', 'underline', 'through',
-                'color', 'bgColor',
-                '|',
-                'list', 'orderedList',
-                'justifyLeft', 'justifyRight', 'justifyCenter',
-                '|',
-                'link', 'image', 'table',
-                '|',
-                'undo', 'redo'
-            ]
-        } });
+            });
+            toolbar = createToolbar({ editor, selector: '#' + toolbarId, config: {
+                toolbarKeys: [
+                    'headerSelect',
+                    'bold', 'italic', 'underline', 'through',
+                    'color', 'bgColor',
+                    '|',
+                    'list', 'orderedList',
+                    'justifyLeft', 'justifyRight', 'justifyCenter',
+                    '|',
+                    'link', 'image', 'table',
+                    '|',
+                    'undo', 'redo'
+                ]
+            } });
+        } catch (err) {
+            // 富文本初始化失败：回退到源码模式，提示用户
+            editor = null;
+            toolbar = null;
+            toolbarBox.innerHTML = '';
+            editorBox.innerHTML = '';
+            wrap.hidden = true;
+            sourceArea.hidden = false;
+            sourceArea.value = html;
+            toggleBtn.textContent = '切换到富文本';
+            modeTip.textContent = '当前模式：源码（富文本编辑器初始化失败，已自动降级）';
+            toast('富文本编辑器初始化失败，已自动切换到源码模式：' + (err.message || err), 'error');
+            return;
+        }
 
         toggleBtn.textContent = '切换到源码';
         modeTip.textContent = '当前模式：富文本（所见即所得编辑）。富文本模式可能会重排 HTML 结构';
@@ -207,8 +223,14 @@ function createRichTextField({
         '}';
     document.head.appendChild(styleEl);
 
-    // 默认富文本模式：直接创建 wangEditor
-    switchToRich();
+    // 默认富文本模式：先把 DOM 挂到文档中再创建编辑器（wangEditor 通过 document.querySelector 查找元素）
+    // 注意：调用方需先把 root 元素 append 到文档中，再调用 getValue/setValue
+    // 这里延迟到下一帧初始化，确保容器已在 DOM 中且有尺寸
+    if (typeof requestAnimationFrame === 'function') {
+        requestAnimationFrame(() => switchToRich());
+    } else {
+        setTimeout(() => switchToRich(), 0);
+    }
 
     return {
         el: root,
@@ -497,7 +519,10 @@ export function render(container) {
     /** 独立保存某个模块 */
     async function handleSaveModule(moduleKey, btn) {
         const meta = MODULE_META[moduleKey];
-        if (!meta) return;
+        if (!meta) {
+            toast('未知的保存模块：' + moduleKey, 'error');
+            return;
+        }
 
         const ok = await confirmDialog({
             title: `保存${meta.label}`,
@@ -521,9 +546,12 @@ export function render(container) {
         }
     }
 
-    // 绑定所有独立保存按钮
-    container.querySelectorAll('[data-save]').forEach((btn) => {
-        btn.addEventListener('click', () => handleSaveModule(btn.dataset.save, btn));
+    // 保存按钮使用事件委托（绑定在 container 上），更稳健：
+    // 即使局部 DOM 重建（如富文本编辑器初始化），也不会丢失事件绑定
+    container.addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-save]');
+        if (!btn) return;
+        handleSaveModule(btn.dataset.save, btn);
     });
 
     /* ---------- 留言板：条目增删渲染 ---------- */
