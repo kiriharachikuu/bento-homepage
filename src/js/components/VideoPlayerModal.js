@@ -1,7 +1,7 @@
 /**
  * B 站视频播放弹窗（单例）
- * 点击视频卡片时打开，内嵌 B 站官方嵌入式播放器 player.bilibili.com
- * 使用高画质参数 high_quality=1，播放器会尝试加载最高可用清晰度
+ * 点击视频卡片时打开，内嵌 B 站 newplayer 样式播放器（画质更高）
+ * 通过本站 /api/bili-proxy 反向代理解决 X-Frame-Options 和跨域问题
  */
 
 let overlayEl = null;
@@ -72,9 +72,10 @@ export function openVideoPlayer({ bvid, title = '视频播放' }) {
   if (!bvid) return;
   ensureModal();
 
-  // B 站官方嵌入播放器（player.bilibili.com）：第三方 iframe 嵌入最稳定
-  // high_quality=1 会尝试最高画质；danmaku=0 默认关弹幕
-  const playerUrl = `https://player.bilibili.com/player.html?bvid=${bvid}&page=1&autoplay=1&danmaku=0&high_quality=1`;
+  // newplayer 样式播放器，通过本站 /api/bili-proxy 代理
+  // 代理会：1) 剥离 X-Frame-Options 允许 iframe 嵌入 2) 注入脚本劫持内部 API 请求解决跨域 3) 带 buvid3 设备指纹绕过 3107 错误
+  const biliUrl = `https://www.bilibili.com/blackboard/newplayer.html?crossDomain=true&bvid=${bvid}&as_wide=1&page=0&autoplay=1&poster=1`;
+  const playerUrl = `/api/bili-proxy?url=${encodeURIComponent(biliUrl)}`;
 
   const titleEl = modalEl.querySelector('#video-player-title');
   const contentEl = modalEl.querySelector('#video-player-content');
