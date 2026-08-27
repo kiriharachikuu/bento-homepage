@@ -36,8 +36,8 @@ export class VideoCard extends BaseCard {
       videoData = (siteConfig.videos && siteConfig.videos[videoIndex]) || null;
     }
 
-    const colSpan = cardConfig.colSpan === 2 || cardConfig.colSpan === '2' ? 'md:col-span-2' : '';
-    const classes = [colSpan, cardConfig.classes || 'from-purple-50 to-indigo-100'].filter(Boolean).join(' ');
+    const colSpan = cardConfig.colSpan === 2 || cardConfig.colSpan === '2' ? 'col-span-2' : '';
+    const classes = [colSpan, 'card-video', cardConfig.classes || 'from-purple-50 to-indigo-100'].filter(Boolean).join(' ');
 
     super({
       id: cardConfig.id || `video-card-${videoIndex}`,

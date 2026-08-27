@@ -10,8 +10,8 @@ export class ContactCard extends BaseCard {
    * @param {Object} config - 卡片配置
    */
   constructor(config = {}) {
-    const colSpan = config.colSpan === 2 || config.colSpan === '2' ? 'md:col-span-2' : '';
-    const classes = [colSpan, config.classes || ''].filter(Boolean).join(' ');
+    const colSpan = config.colSpan === 2 || config.colSpan === '2' ? 'col-span-2' : '';
+    const classes = [colSpan, 'card-contact', config.classes || ''].filter(Boolean).join(' ');
 
     super({
       id: config.id || 'contact-card',

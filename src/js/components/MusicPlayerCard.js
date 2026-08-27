@@ -6,8 +6,8 @@ import siteConfig from '../config.js';
  */
 export class MusicPlayerCard extends BaseCard {
   constructor(config = {}) {
-    const rowSpan = config.rowSpan === 2 || config.rowSpan === '2' ? 'md:row-span-2' : '';
-    const classes = [rowSpan, config.classes || ''].filter(Boolean).join(' ');
+    const rowSpan = config.rowSpan === 2 || config.rowSpan === '2' ? 'row-span-2' : '';
+    const classes = [rowSpan, 'card-music-player', config.classes || ''].filter(Boolean).join(' ');
 
     super({
       id: config.id || 'music-player-card',

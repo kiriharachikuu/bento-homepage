@@ -6,9 +6,9 @@ import { BaseCard } from './BaseCard.js';
  */
 export class FreeformCard extends BaseCard {
   constructor(config = {}) {
-    const colSpan = config.colSpan === 2 || config.colSpan === '2' ? 'md:col-span-2' : '';
+    const colSpan = config.colSpan === 2 || config.colSpan === '2' ? 'col-span-2' : '';
     const bgColor = config.bgColor || '';
-    const classes = [colSpan, bgColor, config.classes || ''].filter(Boolean).join(' ');
+    const classes = [colSpan, 'card-freeform', bgColor, config.classes || ''].filter(Boolean).join(' ');
 
     super({
       id: config.id || 'freeform-card',
