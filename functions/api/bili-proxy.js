@@ -14,7 +14,8 @@
  *   url - 目标 URL（必须是 B 站白名单域名）
  */
 import { error, runHandler } from '../lib/response.js';
-import { getSiteConfig } from '../lib/config.js';
+import { getSiteConfig } from '../lib/videos.js';
+import { assertKV } from '../lib/kv.js';
 
 /** B 站白名单根域名（支持子域名匹配） */
 const BILI_DOMAINS = [
@@ -79,9 +80,9 @@ async function generateBuvid() {
 }
 
 /** 从 KV 读取管理员配置的 B 站 cookie（SESSDATA 等登录态） */
-async function getAdminBiliCookie(env) {
+async function getAdminBiliCookie(kv) {
     try {
-        const siteConfig = await getSiteConfig(env);
+        const siteConfig = await getSiteConfig(kv);
         const cookie = siteConfig?.videoSync?.biliCookie;
         if (cookie && typeof cookie === 'string') {
             // 简单校验：包含 SESSDATA 才是有效登录态
@@ -279,7 +280,8 @@ function buildInjectScript() {
 
 export function onRequest(context) {
     return runHandler(async () => {
-        const { request, env } = context;
+        const { request } = context;
+        const kv = assertKV(context);
 
         if (!ALLOWED_METHODS.has(request.method)) {
             return error(405, 'METHOD_NOT_ALLOWED', '仅支持 GET / HEAD / POST');
@@ -321,7 +323,7 @@ export function onRequest(context) {
                              targetUrl.hostname.includes('interface.');
         let adminCookie = '';
         if (isApiRequest) {
-            adminCookie = await getAdminBiliCookie(env);
+            adminCookie = await getAdminBiliCookie(kv);
         }
 
         // 构造上游请求头
