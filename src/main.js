@@ -153,263 +153,188 @@ function renderApp() {
   // 渲染所有卡片到网格容器（renderTo 内部会清空容器，重复调用安全）
   cardManager.renderTo('.grid-container')
   
-  // 添加拖拽功能（Pointer Events 实现丝滑拖拽）
+  // ===== 卡片拖拽系统 =====
   const container = document.querySelector('.grid-container')
   draggables = document.querySelectorAll('.draggable-card')
 
-  // 初始化网格管理器
-  gridManager = new GridManager(4, 100)
-  // 初始计算所有卡片的位置
-  gridManager.recalculateAllPositions()
+  let drag = null
 
-  // 缓存容器样式信息
-  const containerComputed = getComputedStyle(container)
-  columnGap = parseFloat(containerComputed.columnGap) || 0
-  rowGap = parseFloat(containerComputed.rowGap) || 0
-
-  // ===== 丝滑拖拽系统 =====
-  let dragState = null
+  function getCardSizeClasses(card) {
+    const classes = []
+    if (card.classList.contains('col-span-2')) classes.push('col-span-2')
+    if (card.classList.contains('row-span-2')) classes.push('row-span-2')
+    return classes
+  }
 
   function onPointerDown(e) {
-    // 已有拖拽进行中，忽略
-    if (dragState) return
-    // 左键或触摸
+    if (drag) return
     if (e.button !== undefined && e.button !== 0) return
-    // 忽略来自链接/按钮/输入框/iframe 的拖拽
-    if (e.target.closest('a, button, input, textarea, iframe, [data-no-drag]')) return
+    // 忽略交互元素上的拖拽
+    if (e.target.closest('a, button, input, textarea, iframe, select, video, [data-no-drag]')) return
 
     const card = e.currentTarget
     const rect = card.getBoundingClientRect()
 
-    // 计算光标在卡片内的偏移
-    const offsetX = e.clientX - rect.left
-    const offsetY = e.clientY - rect.top
-
-    // 创建占位卡（留在 Grid 原位，保持布局流动）
+    // 占位卡：留在 grid 原位撑住空间
     const placeholder = document.createElement('div')
-    placeholder.className = 'drag-placeholder'
+    placeholder.className = 'drag-placeholder ' + getCardSizeClasses(card).join(' ')
     placeholder.style.width = rect.width + 'px'
     placeholder.style.height = rect.height + 'px'
 
-    // 同步尺寸类（跨列/跨行）
-    if (card.classList.contains('md:col-span-2')) {
-      placeholder.classList.add('md:col-span-2')
-    }
-    if (card.classList.contains('md:row-span-2') || card.id === 'music-player-card') {
-      placeholder.classList.add('md:row-span-2')
-      placeholder.style.aspectRatio = 'auto'
-    }
-
-    // 插入占位卡到原位
+    // 插入占位卡，把卡片移出 grid
     card.parentNode.insertBefore(placeholder, card)
-
-    // 将卡片移到 body 末尾，彻底脱离 Grid 容器，避免影响布局
     document.body.appendChild(card)
 
-    // 将卡片转为 fixed 定位，脱离文档流
+    // fixed 定位 + 初始变换
     card.style.width = rect.width + 'px'
     card.style.height = rect.height + 'px'
     card.style.left = '0px'
     card.style.top = '0px'
-    card.style.transform = `translate(${rect.left}px, ${rect.top}px) scale(1.05) rotate(2deg)`
+    card.style.transform = `translate(${rect.left}px, ${rect.top}px) scale(1.03) rotate(1deg)`
+    card.style.zIndex = '1000'
+    card.style.pointerEvents = 'none'
     card.classList.add('is-dragging')
 
-    // 全局事件监听（一次拖拽一套，结束后清理）
-    dragState = {
-      card,
-      placeholder,
-      offsetX,
-      offsetY,
+    drag = {
+      card, placeholder,
       pointerId: e.pointerId,
-      targetX: rect.left,
-      targetY: rect.top,
-      currentX: rect.left,
-      currentY: rect.top,
+      offsetX: e.clientX - rect.left,
+      offsetY: e.clientY - rect.top,
+      targetX: rect.left, targetY: rect.top,
+      currentX: rect.left, currentY: rect.top,
       animating: false,
-      lastHitCard: null,
-      lastHitTime: 0
+      lastHitTime: 0,
     }
 
     document.addEventListener('pointermove', onPointerMove)
     document.addEventListener('pointerup', onPointerUp)
     document.addEventListener('pointercancel', onPointerUp)
 
-    // 启动 rAF 渲染循环
-    startDragLoop()
+    startDragAnim()
   }
 
-  function startDragLoop() {
-    if (!dragState || dragState.animating) return
-    dragState.animating = true
-
-    function tick() {
-      if (!dragState) return
-      // 带阻尼的跟随：越接近目标越慢，视觉更丝滑
-      dragState.currentX += (dragState.targetX - dragState.currentX) * 0.2
-      dragState.currentY += (dragState.targetY - dragState.currentY) * 0.2
-
-      const dx = dragState.targetX - dragState.currentX
-      const dy = dragState.targetY - dragState.currentY
-      const distance = Math.sqrt(dx * dx + dy * dy)
-
-      if (distance > 0.3) {
-        dragState.card.style.transform =
-          `translate(${dragState.currentX}px, ${dragState.currentY}px) scale(1.05) rotate(2deg)`
+  function startDragAnim() {
+    if (!drag || drag.animating) return
+    drag.animating = true
+    ;(function tick() {
+      if (!drag) return
+      drag.currentX += (drag.targetX - drag.currentX) * 0.2
+      drag.currentY += (drag.targetY - drag.currentY) * 0.2
+      const dx = drag.targetX - drag.currentX
+      const dy = drag.targetY - drag.currentY
+      if (Math.sqrt(dx * dx + dy * dy) > 0.3) {
+        drag.card.style.transform = `translate(${drag.currentX}px, ${drag.currentY}px) scale(1.03) rotate(1deg)`
         requestAnimationFrame(tick)
       } else {
-        dragState.card.style.transform =
-          `translate(${dragState.targetX}px, ${dragState.targetY}px) scale(1.05) rotate(2deg)`
-        dragState.animating = false
+        drag.animating = false
       }
-    }
-    requestAnimationFrame(tick)
+    })()
   }
 
   function onPointerMove(e) {
-    if (!dragState || e.pointerId !== dragState.pointerId) return
+    if (!drag || e.pointerId !== drag.pointerId) return
 
-    // 更新目标位置
-    dragState.targetX = e.clientX - dragState.offsetX
-    dragState.targetY = e.clientY - dragState.offsetY
+    drag.targetX = e.clientX - drag.offsetX
+    drag.targetY = e.clientY - drag.offsetY
+    if (!drag.animating) startDragAnim()
 
-    // 重新启动动画循环
-    if (!dragState.animating) {
-      startDragLoop()
-    }
-
-    // 碰撞检测：找到光标下的卡片（节流，每 50ms 最多一次）
+    // 碰撞检测节流
     const now = performance.now()
-    if (now - dragState.lastHitTime < 40) return
-    dragState.lastHitTime = now
+    if (now - drag.lastHitTime < 50) return
+    drag.lastHitTime = now
 
-    // 先隐藏被拖拽卡，让 elementFromPoint 能取到下面的元素
-    dragState.card.style.visibility = 'hidden'
+    // 隐藏拖拽卡，获取下方元素
+    drag.card.style.visibility = 'hidden'
     const below = document.elementFromPoint(e.clientX, e.clientY)
-    dragState.card.style.visibility = ''
+    drag.card.style.visibility = ''
 
     if (!below) return
     const targetCard = below.closest('.draggable-card:not(.is-dragging)')
-
     if (!targetCard) return
 
-    // 计算插入方向
-    const rect = targetCard.getBoundingClientRect()
-    const x = e.clientX - rect.left
-    const y = e.clientY - rect.top
-    const insertAfter = x > rect.width / 2 || y > rect.height / 2
+    const ph = drag.placeholder
+    const parent = targetCard.parentNode
+    if (parent !== ph.parentNode) return
 
-    // 判断占位卡是否已经在正确位置
-    const placeholder = dragState.placeholder
-    const nextCorrect = insertAfter
-      ? placeholder.nextSibling === targetCard.nextSibling
-      : placeholder.previousSibling === targetCard
+    // 判断插入方向：鼠标在目标卡片右半部分则插到后面
+    const tRect = targetCard.getBoundingClientRect()
+    const insertAfter = (e.clientX - tRect.left) > tRect.width / 2
 
-    if (!nextCorrect) {
-      // 碰撞反馈（只在换卡片时触发）
-      if (targetCard !== dragState.lastHitCard) {
-        dragState.lastHitCard = targetCard
-        targetCard.classList.remove('is-hit')
-        void targetCard.offsetWidth // 触发重绘，重播动画
-        targetCard.classList.add('is-hit')
-      }
+    const correct = insertAfter
+      ? ph.nextElementSibling === targetCard
+      : ph.previousElementSibling === targetCard
 
-      // 挪动占位卡到新位置（Grid 自身流动带动其他卡片丝滑避让）
+    if (!correct) {
       if (insertAfter) {
-        targetCard.parentNode.insertBefore(placeholder, targetCard.nextSibling)
+        parent.insertBefore(ph, targetCard.nextSibling)
       } else {
-        targetCard.parentNode.insertBefore(placeholder, targetCard)
+        parent.insertBefore(ph, targetCard)
       }
     }
   }
 
   function onPointerUp(e) {
-    if (!dragState || e.pointerId !== dragState.pointerId) return
+    if (!drag || e.pointerId !== drag.pointerId) return
 
-    const { card, placeholder } = dragState
+    const { card, placeholder } = drag
 
-    // 移除全局事件
     document.removeEventListener('pointermove', onPointerMove)
     document.removeEventListener('pointerup', onPointerUp)
     document.removeEventListener('pointercancel', onPointerUp)
 
-    // 停止动画循环
-    dragState.animating = false
-
-    // 缓动落回：卡片动画飞到占位卡位置
+    // 落位动画
     const finalRect = placeholder.getBoundingClientRect()
-    const startX = dragState.currentX
-    const startY = dragState.currentY
+    const startX = drag.currentX
+    const startY = drag.currentY
     const endX = finalRect.left
     const endY = finalRect.top
-    const duration = 280
+    const duration = 220
     const startTime = performance.now()
 
-    function easeOutBack(t) {
-      const c1 = 1.70158
-      const c3 = c1 + 1
-      return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2)
-    }
-
-    function landTick(now) {
-      if (!dragState) return
-      const elapsed = now - startTime
-      const t = Math.min(elapsed / duration, 1)
-      const eased = easeOutBack(t)
-
+    function land(now) {
+      if (!drag) return
+      const t = Math.min((now - startTime) / duration, 1)
+      const eased = 1 - Math.pow(1 - t, 3) // easeOutCubic
       const x = startX + (endX - startX) * eased
       const y = startY + (endY - startY) * eased
-      const scale = 1.05 - 0.05 * eased
-      const rotate = 2 * (1 - eased)
-
+      const scale = 1.03 - 0.03 * eased
+      const rotate = 1 * (1 - eased)
       card.style.transform = `translate(${x}px, ${y}px) scale(${scale}) rotate(${rotate}deg)`
-
       if (t < 1) {
-        requestAnimationFrame(landTick)
+        requestAnimationFrame(land)
       } else {
         finishDrag()
       }
     }
-
-    requestAnimationFrame(landTick)
+    requestAnimationFrame(land)
 
     function finishDrag() {
-      if (!dragState) return
-      // 把卡片放回占位卡的位置
+      if (!drag) return
+      // 把卡片放回 grid
       placeholder.parentNode.insertBefore(card, placeholder)
       placeholder.remove()
 
-      // 清理拖拽样式
+      // 清理所有拖拽样式
       card.classList.remove('is-dragging')
       card.style.transform = ''
       card.style.left = ''
       card.style.top = ''
       card.style.width = ''
       card.style.height = ''
+      card.style.zIndex = ''
+      card.style.pointerEvents = ''
       card.style.visibility = ''
 
-      // 清除所有碰撞反馈
-      document.querySelectorAll('.is-hit').forEach(c => c.classList.remove('is-hit'))
-
-      // 更新索引和网格
-      updateCardIndices()
-      gridManager.recalculateAllPositions()
-      fillEmptySpaces(gridManager)
       draggables = container.querySelectorAll('.draggable-card')
-
-      dragState = null
+      drag = null
     }
   }
 
-  // 为每个可拖拽元素添加索引属性和拖拽事件
+  // 绑定拖拽 + 淡入动画
   draggables.forEach((draggable, index) => {
-    draggable.setAttribute('data-index', index)
-
-    // 添加淡入动画延迟
-    draggable.style.animationDelay = `${index * 0.1}s`
-    draggable.classList.add('fade-in')
-
-    // pointerdown 绑定在卡片上，move/up/cancel 全局绑定
     draggable.addEventListener('pointerdown', onPointerDown)
+    draggable.style.animationDelay = `${index * 0.08}s`
+    draggable.classList.add('fade-in')
   })
 
   // 初始化粉丝数更新
@@ -458,307 +383,3 @@ document.addEventListener('DOMContentLoaded', async function () {
   renderApp();
   initGridSizing();
 });
-
-// 应用挤压效果到其他卡片
-function applyShiftEffect(target, insertAfter, columnGap, rowGap, gridManager) {
-  const container = document.querySelector('.grid-container')
-  const containerRect = container.getBoundingClientRect()
-  const allCards = Array.from(document.querySelectorAll('.draggable-card:not(.dragging)'))
-  const targetIndex = Array.from(target.parentNode.children).indexOf(target)
-  
-  // 移除之前的挤压效果
-  allCards.forEach(card => {
-    card.classList.remove('shift-left', 'shift-right', 'shift-up', 'shift-down')
-  })
-  
-  // 计算每列的宽度 (使用缓存的间隙值)
-  const cardRect = target.getBoundingClientRect()
-  const cardWidth = cardRect.width
-  const cardHeight = cardRect.height
-  const columnWidth = cardWidth + columnGap
-  const rowHeight = cardHeight + rowGap
-  
-  // 计算目标卡片所在的行列
-  const relativeLeft = cardRect.left - containerRect.left
-  const relativeTop = cardRect.top - containerRect.top
-  const targetCol = Math.round(relativeLeft / columnWidth)
-  const targetRow = Math.round(relativeTop / rowHeight)
-  
-  // 检查目标卡片是否为1*2卡片
-  const isTargetMultiRow = target.classList.contains('md\:row-span-2')
-  
-  // 查找网格中的空位，考虑卡片尺寸
-  const occupiedPositions = new Set()
-  allCards.forEach(card => {
-    if (card === target || card.classList.contains('placeholder')) return
-    
-    const rect = card.getBoundingClientRect()
-    const left = rect.left - containerRect.left
-    const top = rect.top - containerRect.top
-    const col = Math.round(left / columnWidth)
-    const row = Math.round(top / rowHeight)
-    
-    // 标记当前卡片占据的位置
-    occupiedPositions.add(`${col},${row}`)
-    
-    // 检查卡片尺寸类型，标记占据的额外位置
-    if (card.classList.contains('md\:row-span-2')) {
-      // 1*2卡片：占据1列2行
-      occupiedPositions.add(`${col},${row + 1}`)
-    } else if (card.classList.contains('md\:col-span-2')) {
-      // 2*1卡片：占据2列1行
-      occupiedPositions.add(`${col + 1},${row}`)
-    }
-  })
-  
-  // 为其他卡片应用挤压效果
-  allCards.forEach(card => {
-    if (card === target || card.classList.contains('placeholder')) return
-    
-    const cardRect = card.getBoundingClientRect()
-    const relativeLeft = cardRect.left - containerRect.left
-    const relativeTop = cardRect.top - containerRect.top
-    const cardCol = Math.round(relativeLeft / columnWidth)
-    const cardRow = Math.round(relativeTop / rowHeight)
-    
-    // 检查当前卡片尺寸类型
-    const isCardMultiRow = card.classList.contains('md\:row-span-2')
-    const isCardMultiCol = card.classList.contains('md\:col-span-2')
-    
-    // 添加过渡效果
-    card.style.transition = 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
-    
-    // 检查周围是否有空位可以移动
-    const adjacentPositions = [
-      { col: cardCol - 1, row: cardRow, class: 'shift-left' },   // 左
-      { col: cardCol + 1, row: cardRow, class: 'shift-right' },  // 右
-      { col: cardCol, row: cardRow - 1, class: 'shift-up' },     // 上
-      { col: cardCol, row: cardRow + 1, class: 'shift-down' }    // 下
-    ]
-    
-    // 查找可以移动到的空位
-    let moved = false
-    for (const pos of adjacentPositions) {
-      const positionKey = `${pos.col},${pos.row}`
-      let canMove = true
-      
-      // 根据卡片类型检查是否可以移动到目标位置
-      if (isCardMultiRow) {
-        // 1*2卡片：需要检查当前位置和下一行位置是否都为空
-        const nextRowKey = `${pos.col},${pos.row + 1}`
-        if (occupiedPositions.has(nextRowKey)) {
-          canMove = false
-        }
-      } else if (isCardMultiCol) {
-        // 2*1卡片：需要检查当前位置和下一列位置是否都为空
-        const nextColKey = `${pos.col + 1},${pos.row}`
-        if (occupiedPositions.has(nextColKey)) {
-          canMove = false
-        }
-      }
-      
-      if (canMove && !occupiedPositions.has(positionKey)) {
-        card.classList.add(pos.class)
-        moved = true
-        break
-      }
-    }
-    
-    // 如果周围没有空位，则根据相对位置应用挤压效果
-    if (!moved) {
-      if (cardRow === targetRow) {
-        // 同一行
-        if (cardCol > targetCol) {
-          // 右侧卡片向右移动
-          card.classList.add('shift-right')
-        } else if (cardCol < targetCol) {
-          // 左侧卡片向左移动
-          card.classList.add('shift-left')
-        }
-      } else if (cardRow > targetRow) {
-        // 下方行
-        if (Math.abs(cardCol - targetCol) <= 1) {
-          // 下方相邻列的卡片向下移动
-          card.classList.add('shift-down')
-        }
-      } else if (cardRow < targetRow) {
-        // 上方行
-        if (Math.abs(cardCol - targetCol) <= 1) {
-          // 上方相邻列的卡片向上移动
-          card.classList.add('shift-up')
-        }
-      }
-    }
-  })
-}
-
-// 网格管理器类，用于管理网格状态和卡片位置
-class GridManager {
-  constructor(columns = 4, rows = Infinity) {
-    this.columns = columns;
-    this.rows = rows;
-    this.grid = new Map(); // 存储每个网格位置的占用状态
-    this.cardPositions = new Map(); // 存储每个卡片的位置信息
-  }
-
-  // 计算卡片的尺寸类型
-  getCardSize(card) {
-    if (card.classList.contains('md:row-span-2')) {
-      // 1*2卡片（占据1列2行）
-      return { width: 1, height: 2 };
-    } else if (card.classList.contains('md:col-span-2')) {
-      // 2*1卡片（占据2列1行）
-      return { width: 2, height: 1 };
-    } else {
-      // 1*1卡片（占据1列1行）
-      return { width: 1, height: 1 };
-    }
-  }
-
-  // 检查位置是否可用
-  isPositionAvailable(col, row, width = 1, height = 1) {
-    for (let i = 0; i < width; i++) {
-      for (let j = 0; j < height; j++) {
-        const key = `${col + i},${row + j}`;
-        if (this.grid.has(key)) {
-          return false;
-        }
-      }
-    }
-    return true;
-  }
-
-  // 占用位置
-  occupyPosition(col, row, width = 1, height = 1, card) {
-    const positions = [];
-    for (let i = 0; i < width; i++) {
-      for (let j = 0; j < height; j++) {
-        const key = `${col + i},${row + j}`;
-        this.grid.set(key, card);
-        positions.push(key);
-      }
-    }
-    this.cardPositions.set(card, { col, row, width, height, positions });
-  }
-
-  // 释放位置
-  releasePosition(card) {
-    const pos = this.cardPositions.get(card);
-    if (pos) {
-      pos.positions.forEach(key => {
-        this.grid.delete(key);
-      });
-      this.cardPositions.delete(card);
-    }
-  }
-
-  // 查找可用的空位
-  findEmptySpace(width = 1, height = 1) {
-    // 遍历网格查找可用位置
-    for (let row = 0; row < this.rows; row++) {
-      for (let col = 0; col <= this.columns - width; col++) {
-        if (this.isPositionAvailable(col, row, width, height)) {
-          return { col, row };
-        }
-      }
-    }
-    return null;
-  }
-
-  // 查找所有空位
-  findAllEmptySpaces() {
-    const emptySpaces = [];
-    for (let row = 0; row < this.rows; row++) {
-      for (let col = 0; col < this.columns; col++) {
-        if (this.isPositionAvailable(col, row)) {
-          emptySpaces.push({ col, row });
-        }
-      }
-    }
-    return emptySpaces;
-  }
-
-  // 重新计算所有卡片的位置
-  recalculateAllPositions() {
-    // 清空网格
-    this.grid.clear();
-    this.cardPositions.clear();
-
-    // 获取所有卡片
-    const cards = document.querySelectorAll('.draggable-card');
-    let currentRow = 0;
-    let currentCol = 0;
-
-    cards.forEach(card => {
-      const size = this.getCardSize(card);
-      
-      // 检查当前位置是否可用，如果不可用或当前行剩余空间不够，寻找合适位置
-      if (!this.isPositionAvailable(currentCol, currentRow, size.width, size.height) || 
-          currentCol + size.width > this.columns) {
-        // 寻找可用的空位
-        const emptySpace = this.findEmptySpace(size.width, size.height);
-        if (emptySpace) {
-          currentCol = emptySpace.col;
-          currentRow = emptySpace.row;
-        } else {
-          // 如果没有找到空位，移动到下一行开始位置
-          currentRow++;
-          currentCol = 0;
-          // 确保新位置可用
-          while (!this.isPositionAvailable(currentCol, currentRow, size.width, size.height)) {
-            currentRow++;
-          }
-        }
-      }
-
-      // 占用位置
-      this.occupyPosition(currentCol, currentRow, size.width, size.height, card);
-
-      // 更新当前位置
-      currentCol += size.width;
-      if (currentCol >= this.columns) {
-        currentCol = 0;
-        currentRow++;
-      }
-    });
-  }
-
-  // 更新卡片位置
-  updateCardPosition(card, newCol, newRow) {
-    // 释放旧位置
-    this.releasePosition(card);
-    
-    // 获取卡片尺寸
-    const size = this.getCardSize(card);
-    
-    // 占用新位置
-    this.occupyPosition(newCol, newRow, size.width, size.height, card);
-  }
-}
-
-// 更新所有卡片的索引
-function updateCardIndices() {
-  const cards = document.querySelectorAll('.draggable-card')
-  cards.forEach((card, index) => {
-    card.setAttribute('data-index', index)
-  })
-}
-
-// 查找所有空位（使用GridManager的方法）
-function findEmptySpaces(gridManager) {
-  return gridManager.findAllEmptySpaces();
-}
-
-// 填充空位，让1*1卡片自动填充
-function fillEmptySpaces(gridManager) {
-  const emptySpaces = gridManager.findAllEmptySpaces();
-  if (emptySpaces.length === 0) {
-    return; // 没有空位，不需要填充
-  }
-
-  // 获取所有卡片
-  const allCards = Array.from(document.querySelectorAll('.draggable-card'));
-  
-  // 重新计算所有卡片的位置，让浏览器自动重新排列
-  gridManager.recalculateAllPositions();
-}
