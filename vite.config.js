@@ -1,6 +1,7 @@
 import { resolve } from 'path';
 import { defineConfig } from 'vite';
 import viteImagemin from 'vite-plugin-imagemin';
+import { biliProxyMiddleware } from './vite-bili-proxy.mjs';
 
 export default defineConfig({
   base: '/',
@@ -8,6 +9,8 @@ export default defineConfig({
   // 关闭 SPA history fallback，否则 dev 下 /admin 会被重写到前台首页
   appType: 'mpa',
   plugins: [
+    // B 站代理中间件（开发环境模拟 EdgeOne Pages 的 /api/bili-proxy）
+    biliProxyMiddleware(),
     // dev 下把 /admin 重定向到 /admin/（MPA 模式无目录重定向，与生产环境静态托管行为对齐）
     {
       name: 'admin-dir-redirect',

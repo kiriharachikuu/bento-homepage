@@ -1,7 +1,7 @@
 /**
  * B 站视频播放弹窗（单例）
- * 点击视频卡片时打开，内嵌 B 站 newplayer 样式播放器（画质更高）
- * 通过本站 /api/bili-proxy 反向代理解决 X-Frame-Options 和跨域问题
+ * 点击视频卡片时打开，内嵌 B 站 newplayer 样式播放器
+ * 直接使用 bilibili.com 官方播放器，用户登录了 B 站就有高画质
  */
 
 let overlayEl = null;
@@ -72,10 +72,15 @@ export function openVideoPlayer({ bvid, title = '视频播放' }) {
   if (!bvid) return;
   ensureModal();
 
-  // newplayer 样式播放器，通过本站 /api/bili-proxy 代理
-  // 代理会：1) 剥离 X-Frame-Options 允许 iframe 嵌入 2) 注入脚本劫持内部 API 请求解决跨域 3) 带 buvid3 设备指纹绕过 3107 错误
-  const biliUrl = `https://www.bilibili.com/blackboard/newplayer.html?crossDomain=true&bvid=${bvid}&as_wide=1&page=0&autoplay=1&poster=1`;
-  const playerUrl = `/api/bili-proxy?url=${encodeURIComponent(biliUrl)}`;
+  // B 站 newplayer 样式播放器（通过本站代理转发，实现高画质播放）
+  // 为什么不直接用 player.bilibili.com？
+  //   player.bilibili.com 是第三方嵌入版，默认低画质（480P），样式也不一样
+  // 为什么不直接嵌入 newplayer.html？
+  //   直接嵌入依赖用户自己登录 B 站才有高画质，未登录只有 480P
+  //   通过本站代理：注入脚本劫持请求 + 服务端带管理员 SESSDATA
+  //   → 所有访客都能享受高画质，且样式是 newplayer (nanoplayer) 风格
+  const biliPlayerUrl = `https://www.bilibili.com/blackboard/newplayer.html?crossDomain=true&bvid=${bvid}&as_wide=1&page=1&autoplay=1&poster=1&high_quality=1`;
+  const playerUrl = `/api/bili-proxy?url=${encodeURIComponent(biliPlayerUrl)}`;
 
   const titleEl = modalEl.querySelector('#video-player-title');
   const contentEl = modalEl.querySelector('#video-player-content');
@@ -93,6 +98,9 @@ export function openVideoPlayer({ bvid, title = '视频播放' }) {
           scrolling="no">
         </iframe>
       </div>
+      <p class="text-sm mt-3 opacity-60 text-center">
+        视频源版权归原作者及 B 站所有，画质由后台配置决定
+      </p>
     `;
   }
 
