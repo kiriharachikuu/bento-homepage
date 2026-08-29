@@ -475,6 +475,14 @@
     gap: 0.375rem !important;
   }
 
+  /* ===== 音乐播放器移动端：占 2 列，横置显示 ===== */
+  #music-player-card.draggable-card {
+    min-height: 150px !important;
+  }
+  #music-player-card iframe {
+    transform: scaleX(1.02) scaleY(1) !important;
+  }
+
   /* ===== 视频播放器弹窗移动端适配 ===== */
   .bg-card.max-w-4xl {
     max-width: 100% !important;

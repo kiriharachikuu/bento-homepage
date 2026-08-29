@@ -16,6 +16,7 @@ import {
     buildUpstreamHeaders,
     buildResponseHeaders,
     processHtml,
+    rewriteBiliUrlsInJs,
     detectContentType,
 } from '../lib/biliProxyCore.js';
 
@@ -182,9 +183,20 @@ export function onRequest(context) {
             });
         }
 
-        // JS/CSS 等静态资源：缓存 7 天
+        // JS/CSS 等静态资源：缓存 7 天，JS 需要重写内部 URL
         if (ct.isJs || ct.isCss) {
             newHeaders.set('cache-control', 'public, max-age=604800, immutable');
+            if (ct.isJs && request.method === 'GET') {
+                // 重写 JS 代码中的 B 站 API URL 为代理地址
+                let js = await res.text();
+                js = rewriteBiliUrlsInJs(js);
+                newHeaders.set('content-type', 'application/javascript; charset=utf-8');
+                return new Response(js, {
+                    status: res.status,
+                    statusText: res.statusText,
+                    headers: newHeaders
+                });
+            }
             return new Response(res.body, {
                 status: res.status,
                 statusText: res.statusText,

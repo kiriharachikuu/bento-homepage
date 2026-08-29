@@ -10,6 +10,7 @@ import {
     buildUpstreamHeaders,
     buildResponseHeaders,
     processHtml,
+    rewriteBiliUrlsInJs,
     detectContentType,
 } from './functions/lib/biliProxyCore.js';
 
@@ -161,13 +162,23 @@ export function biliProxyMiddleware() {
                         res.setHeader(key, value);
                     }
 
-                    // HTML: 注入脚本
+                    // HTML: 注入脚本 + URL 替换
                     if (ct.isHtml && req.method === 'GET') {
                         let html = await fetchRes.text();
                         html = processHtml(html);
                         res.setHeader('content-type', 'text/html; charset=utf-8');
                         res.setHeader('cache-control', 'no-cache, no-store, must-revalidate');
                         res.end(html);
+                        return;
+                    }
+
+                    // JS: 重写内部 URL 为代理地址
+                    if (ct.isJs && req.method === 'GET') {
+                        let js = await fetchRes.text();
+                        js = rewriteBiliUrlsInJs(js);
+                        res.setHeader('content-type', 'application/javascript; charset=utf-8');
+                        res.setHeader('cache-control', 'public, max-age=604800, immutable');
+                        res.end(js);
                         return;
                     }
 

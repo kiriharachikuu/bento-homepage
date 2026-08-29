@@ -101,10 +101,28 @@ export function buildInjectScript() {
             return isBili(u.hostname);
         } catch(e) { return false; }
     }
+    function rewriteWbiPlayurl(url) {
+        // 将 wbi 签名版 playurl 重写为普通版，避免签名校验失败（3107 错误）
+        // 服务端转发时会带管理员 SESSDATA，仍然可以拿到高画质
+        try {
+            var u = new URL(url, location.href);
+            if (!/\/player\/wbi\/playurl/.test(u.pathname)) return url;
+            u.pathname = u.pathname.replace('/player/wbi/playurl', '/player/playurl');
+            // 移除 wbi 签名参数
+            u.searchParams.delete('w_rid');
+            u.searchParams.delete('wts');
+            // 确保请求 dash + hevc + dolby 高画质
+            if (!u.searchParams.get('fnval')) u.searchParams.set('fnval', '4048');
+            if (!u.searchParams.get('fourk')) u.searchParams.set('fourk', '1');
+            if (!u.searchParams.get('qn')) u.searchParams.set('qn', '120');
+            return u.href;
+        } catch(e) { return url; }
+    }
     function toProxy(url) {
         try {
             var u = new URL(url, location.href);
-            return PROXY + '?url=' + encodeURIComponent(u.href);
+            var rewritten = rewriteWbiPlayurl(u.href);
+            return PROXY + '?url=' + encodeURIComponent(rewritten);
         } catch(e) { return url; }
     }
 
@@ -282,9 +300,16 @@ export function buildUpstreamHeaders(origHeaders, buvid, adminCookie, targetUrl)
 }
 
 /**
- * 处理 HTML 响应：注入劫持脚本
+ * 处理 HTML 响应：
+ *   1. 把所有 B 站域名的静态资源 URL（iframe/script/link/img 等的 src/href）替换为代理地址
+ *      （确保子 iframe、子资源也走代理，避免 CORS 和跨 iframe 劫持失效问题）
+ *   2. 注入劫持脚本
  */
 export function processHtml(html) {
+    // 第一步：替换所有 B 站域名的 URL 为代理地址
+    html = rewriteBiliUrlsInHtml(html);
+
+    // 第二步：注入劫持脚本
     const inject = buildInjectScript();
 
     // 注入到 <head> 内第一个 <script> 之前
@@ -302,6 +327,70 @@ export function processHtml(html) {
         return html.slice(0, injectPos) + inject + '\n' + html.slice(injectPos);
     }
     return inject + '\n' + html;
+}
+
+/**
+ * 替换 HTML 中所有 B 站域名的 URL 为代理地址
+ * 匹配：src="..."  href="..."  src='...'  href='...'
+ * 确保 iframe、script、link、img 等静态资源也走代理
+ */
+export function rewriteBiliUrlsInHtml(html) {
+    const proxyPath = PROXY_PATH;
+
+    function replaceAttr(match, attr, quote, url) {
+        // 跳过空值和相对路径
+        if (!url || url.startsWith('/') && !url.startsWith('//')) {
+            return match;
+        }
+        // data: / blob: 协议跳过
+        if (/^(data:|blob:|javascript:)/i.test(url)) {
+            return match;
+        }
+        try {
+            const u = new URL(url);
+            if (isBiliHost(u.hostname)) {
+                const proxied = proxyPath + '?url=' + encodeURIComponent(u.href);
+                return `${attr}=${quote}${proxied}${quote}`;
+            }
+        } catch (e) {
+            // 不是合法 URL，原样返回
+        }
+        return match;
+    }
+
+    // 双引号属性
+    html = html.replace(/\b(src|href|poster|data-src|data-href)\s*=\s*"([^"]+)"/g,
+        (m, attr, url) => replaceAttr(m, attr, '"', url));
+
+    // 单引号属性
+    html = html.replace(/\b(src|href|poster|data-src|data-href)\s*=\s*'([^']+)'/g,
+        (m, attr, url) => replaceAttr(m, attr, "'", url));
+
+    return html;
+}
+
+/**
+ * 替换 JS 代码中的 B 站 API URL 为代理地址
+ * 把所有形如 https://xxx.bilibili.com/... 或 https://xxx.hdslb.com/... 的字符串替换为代理 URL
+ * 这样即使 XHR/fetch 劫持失效，JS 代码里硬编码的 URL 也会走代理
+ */
+export function rewriteBiliUrlsInJs(js) {
+    const proxyPath = PROXY_PATH;
+
+    // 匹配 https?:// 开头的 B 站域名 URL，直到遇到非 URL 字符
+    const re = /(https?:\/\/[\w\-\.]+\.(?:bilibili\.com|bilivideo\.com|hdslb\.com|biliapi\.com|bilibili\.tv|biliimg\.com|bilibili\.co)[\w\-\.~:/?#\[\]@!$&'()*+,;=%]*)/g;
+
+    return js.replace(re, (match) => {
+        try {
+            const u = new URL(match);
+            if (isBiliHost(u.hostname)) {
+                return proxyPath + '?url=' + encodeURIComponent(u.href);
+            }
+        } catch (e) {
+            // ignore
+        }
+        return match;
+    });
 }
 
 /**

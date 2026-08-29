@@ -2,9 +2,13 @@
  * Grid 布局辅助：确保每个网格单元是正方形（行高 = 列宽）
  * 通过 CSS 变量 --cell-size 控制行高
  * 动态读取 grid-template-columns 计算列数，适配响应式断点
+ *
+ * 同时负责移动端卡片尺寸切换（如音乐播放器在移动端横置为 2 列宽）
  */
 
-export function initGridSizing() {
+let currentLayoutMode = null; // 'mobile' | 'tablet' | 'desktop'
+
+export function initGridSizing(onLayoutChange) {
   const grid = document.querySelector('.grid-container');
   if (!grid) return;
 
@@ -19,6 +23,34 @@ export function initGridSizing() {
     return cols.length || 4;
   }
 
+  /**
+   * 根据当前列数切换卡片的响应式尺寸
+   * 例如：音乐播放器在手机端（2列）是 2×1，在桌面端（3-4列）是 1×2
+   */
+  function applyResponsiveCardSizes(columns) {
+    let mode;
+    if (columns <= 2) mode = 'mobile';
+    else if (columns === 3) mode = 'tablet';
+    else mode = 'desktop';
+
+    if (mode === currentLayoutMode) return false;
+    currentLayoutMode = mode;
+
+    // 音乐播放器卡片：桌面 1×2，移动端 2×1
+    const musicCard = document.querySelector('#music-player-card.draggable-card');
+    if (musicCard) {
+      if (mode === 'mobile') {
+        musicCard.classList.remove('row-span-2');
+        musicCard.classList.add('col-span-2');
+      } else {
+        musicCard.classList.remove('col-span-2');
+        musicCard.classList.add('row-span-2');
+      }
+    }
+
+    return true; // 尺寸发生了变化
+  }
+
   function update() {
     rafId = null;
     const columns = getColumnCount();
@@ -27,6 +59,12 @@ export function initGridSizing() {
     const totalGap = gap * (columns - 1);
     const cellSize = (gridWidth - totalGap) / columns;
     grid.style.setProperty('--cell-size', `${cellSize}px`);
+
+    // 切换响应式卡片尺寸
+    const sizeChanged = applyResponsiveCardSizes(columns);
+    if (sizeChanged && typeof onLayoutChange === 'function') {
+      onLayoutChange();
+    }
   }
 
   function scheduleUpdate() {

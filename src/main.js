@@ -662,5 +662,12 @@ document.addEventListener('DOMContentLoaded', async function () {
   // 缓存后台刷新发现配置变化时，通过回调触发页面重渲染
   await initRemoteConfig(() => renderApp());
   renderApp();
-  initGridSizing();
+  // 响应式 Grid 尺寸计算，布局模式切换时触发 GridManager 重排
+  initGridSizing(() => {
+    if (gridManager) {
+      const oldPos = gridManager.snapshot();
+      gridManager.reflow();
+      try { flipAnimate(draggables, oldPos, 300); } catch (e) {}
+    }
+  });
 });
