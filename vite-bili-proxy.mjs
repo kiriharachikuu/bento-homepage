@@ -10,7 +10,6 @@ import {
     buildUpstreamHeaders,
     buildResponseHeaders,
     processHtml,
-    rewriteBiliUrlsInJs,
     detectContentType,
 } from './functions/lib/biliProxyCore.js';
 
@@ -130,6 +129,9 @@ export function biliProxyMiddleware() {
                         targetUrl
                     );
 
+                    // B 站 API 强制 https：http 请求会被 B 站拒绝（-400）
+                    if (targetUrl.protocol === 'http:') targetUrl.protocol = 'https:';
+
                     console.log('[bili-proxy]', req.method, targetUrl.hostname + targetUrl.pathname);
 
                     // 转发
@@ -172,15 +174,9 @@ export function biliProxyMiddleware() {
                         return;
                     }
 
-                    // JS: 重写内部 URL 为代理地址
-                    if (ct.isJs && req.method === 'GET') {
-                        let js = await fetchRes.text();
-                        js = rewriteBiliUrlsInJs(js);
-                        res.setHeader('content-type', 'application/javascript; charset=utf-8');
-                        res.setHeader('cache-control', 'public, max-age=604800, immutable');
-                        res.end(js);
-                        return;
-                    }
+                    // JS 源码不重写（重写会破坏 postMessage origin 握手，导致 3107）；
+                    // API 请求由注入脚本劫持 fetch/XHR 处理，静态资源由 HTML 重写处理。
+                    // JS 响应直接走下面的流式转发。
 
                     // 流式响应
                     if (fetchRes.body) {

@@ -97,37 +97,64 @@ export function buildInjectScript() {
         if (typeof url !== 'string') return false;
         if (url.charAt(0) === '/' && url.charAt(1) !== '/') return false;
         try {
-            var u = new URL(url, location.href);
+            var u = new URL(url, REAL_HREF);
             return isBili(u.hostname);
         } catch(e) { return false; }
     }
-    function rewriteWbiPlayurl(url) {
-        // 将 wbi 签名版 playurl 重写为普通版，避免签名校验失败（3107 错误）
-        // 服务端转发时会带管理员 SESSDATA，仍然可以拿到高画质
+    function rewriteWbiUrl(url) {
+        // wbi 签名接口必须带 w_rid/wts，而签名在代理转发后会失效（-400/3107）。
+        // 统一改写为对应的非 wbi 路径并删除签名参数：非 wbi 接口不校验签名。
         try {
-            var u = new URL(url, location.href);
-            if (!/\/player\/wbi\/playurl/.test(u.pathname)) return url;
-            u.pathname = u.pathname.replace('/player/wbi/playurl', '/player/playurl');
+            var u = new URL(url, REAL_HREF);
+            var p = u.pathname;
+            var isPlayurl = /\\/player\\/wbi\\/playurl/.test(p);
+            var isWbiData = /\\/wbi\\//.test(p);
+            if (!isPlayurl && !isWbiData) return url;
+            // /wbi/ 段去掉 -> 非 wbi 路径（如 /x/web-interface/wbi/view/detail -> /x/web-interface/view/detail）
+            u.pathname = p.replace('/wbi/', '/');
             // 移除 wbi 签名参数
             u.searchParams.delete('w_rid');
             u.searchParams.delete('wts');
-            // 确保请求 dash + hevc + dolby 高画质
-            if (!u.searchParams.get('fnval')) u.searchParams.set('fnval', '4048');
-            if (!u.searchParams.get('fourk')) u.searchParams.set('fourk', '1');
-            if (!u.searchParams.get('qn')) u.searchParams.set('qn', '120');
+            if (isPlayurl) {
+                // 确保请求 dash + hevc + dolby 高画质
+                if (!u.searchParams.get('fnval')) u.searchParams.set('fnval', '4048');
+                if (!u.searchParams.get('fourk')) u.searchParams.set('fourk', '1');
+                if (!u.searchParams.get('qn')) u.searchParams.set('qn', '120');
+            }
             return u.href;
         } catch(e) { return url; }
     }
+    // ===== 0a. 还原真实播放器地址 =====
+    // iframe 实际地址是 /api/bili-proxy?url=<编码后的 newplayer URL>，
+    // 播放器靠 location.search 读取 bvid/cid 等参数，直接读会拿到 ?url=... 而拿不到 bvid，
+    // 导致 view/detail 不带 bvid 返回 -400（错误码 3107）。
+    var REAL_HREF = location.href;
+    var REAL_SEARCH = location.search;
+    try {
+        var _proxyUrl = new URL(location.href).searchParams.get('url');
+        if (_proxyUrl) {
+            var _real = new URL(_proxyUrl);
+            REAL_HREF = _real.href;
+            REAL_SEARCH = _real.search;
+        }
+    } catch(e) {}
+
     function toProxy(url) {
         try {
-            var u = new URL(url, location.href);
-            var rewritten = rewriteWbiPlayurl(u.href);
+            var u = new URL(url, REAL_HREF);
+            // B 站 API/CDN 统一走 https：http 请求会被 B 站拒绝（-400）或重定向
+            if (u.protocol === 'http:') u.protocol = 'https:';
+            var rewritten = rewriteWbiUrl(u.href);
             return PROXY + '?url=' + encodeURIComponent(rewritten);
         } catch(e) { return url; }
     }
 
-    // ===== 0. 伪造环境 =====
+    // ===== 0b. 伪造环境 =====
     try { Object.defineProperty(document, 'referrer', { configurable: true, get: function() { return 'https://www.bilibili.com/'; } }); } catch(e) {}
+    // 伪造 location.search / href，让播放器能读到真实的 bvid 等查询参数
+    // 注意：window.location 的 search/href 通常不可 defineProperty（会静默失败），
+    // 播放器通过 PlayerUtil.getNormalQuery -> getUrlValue 读 location.search 取 bvid，
+    // 因此改为在伪造的 PlayerUtil 上覆盖 getNormalQuery，从真实播放器 URL 解析参数。
 
     // ===== 1. 伪造 PlayerUtil Referrer 校验 =====
     var fakeUtilInstalled = false;
@@ -140,10 +167,24 @@ export function buildInjectScript() {
         PU.isOfficialReferrer = function() { return true; };
         PU.isIframe = function() { return true; };
         PU.getPath = function() { return '/'; };
-        if (window.__CROSSDOMAIN_PLAYER_WHITELIST__) {
-            window.__CROSSDOMAIN_PLAYER_WHITELIST__ = null;
-        }
-        // 覆盖白名单
+        // 关键：让播放器从真实播放器地址（?bvid=...&cid=...）读取参数，
+        // 而不是代理地址（?url=...），否则 bvid 为 null -> view/detail 返回 -400 -> 3107
+        var _origGetNormalQuery = typeof PU.getNormalQuery === 'function' ? PU.getNormalQuery.bind(PU) : null;
+        PU.getNormalQuery = function(paramType) {
+            var result = _origGetNormalQuery ? _origGetNormalQuery(paramType) : {};
+            try {
+                var realParams = new URL(REAL_HREF).searchParams;
+                Object.keys(paramType || {}).forEach(function(key) {
+                    var v = realParams.get(key);
+                    if (v == null || v === '') return;
+                    if (paramType[key] === 'number') v = +v;
+                    else if (paramType[key] === 'boolean') v = (v === 'true');
+                    result[key] = v;
+                });
+            } catch(e) {}
+            return result;
+        };
+        // 覆盖跨域白名单（该属性可能是只读 getter，赋值需 try/catch）
         try {
             window.__CROSSDOMAIN_PLAYER_WHITELIST__ = [location.hostname];
         } catch(e) {}
@@ -295,6 +336,16 @@ export function buildUpstreamHeaders(origHeaders, buvid, adminCookie, targetUrl)
     upHeaders.delete('x-forwarded-proto');
     upHeaders.delete('cf-ray');
     upHeaders.delete('cf-connecting-ip');
+    // 清除浏览器侧 CORS/风控相关头：这些头会让 B 站把请求当作跨域 XHR 做更严格校验（-400）
+    upHeaders.delete('x-requested-with');
+    upHeaders.delete('sec-fetch-dest');
+    upHeaders.delete('sec-fetch-mode');
+    upHeaders.delete('sec-fetch-site');
+    upHeaders.delete('sec-fetch-user');
+    upHeaders.delete('service-worker-allowed');
+    // 浏览器 referer 是本站代理地址，已在上面统一伪造为 bilibili.com，删除旧值避免残留
+    upHeaders.delete('referer');
+    upHeaders.set('referer', 'https://www.bilibili.com/');
 
     return upHeaders;
 }
@@ -338,16 +389,16 @@ export function rewriteBiliUrlsInHtml(html) {
     const proxyPath = PROXY_PATH;
 
     function replaceAttr(match, attr, quote, url) {
-        // 跳过空值和相对路径
-        if (!url || url.startsWith('/') && !url.startsWith('//')) {
-            return match;
-        }
+        if (!url) return match;
+        // 站点根相对路径（/xxx 而非 //host）保持原样
+        if (url.startsWith('/') && !url.startsWith('//')) return match;
         // data: / blob: 协议跳过
         if (/^(data:|blob:|javascript:)/i.test(url)) {
             return match;
         }
         try {
-            const u = new URL(url);
+            // 协议相对 URL（//host/...）用 https: 补全
+            const u = new URL(url, 'https://www.bilibili.com/');
             if (isBiliHost(u.hostname)) {
                 const proxied = proxyPath + '?url=' + encodeURIComponent(u.href);
                 return `${attr}=${quote}${proxied}${quote}`;
@@ -367,30 +418,6 @@ export function rewriteBiliUrlsInHtml(html) {
         (m, attr, url) => replaceAttr(m, attr, "'", url));
 
     return html;
-}
-
-/**
- * 替换 JS 代码中的 B 站 API URL 为代理地址
- * 把所有形如 https://xxx.bilibili.com/... 或 https://xxx.hdslb.com/... 的字符串替换为代理 URL
- * 这样即使 XHR/fetch 劫持失效，JS 代码里硬编码的 URL 也会走代理
- */
-export function rewriteBiliUrlsInJs(js) {
-    const proxyPath = PROXY_PATH;
-
-    // 匹配 https?:// 开头的 B 站域名 URL，直到遇到非 URL 字符
-    const re = /(https?:\/\/[\w\-\.]+\.(?:bilibili\.com|bilivideo\.com|hdslb\.com|biliapi\.com|bilibili\.tv|biliimg\.com|bilibili\.co)[\w\-\.~:/?#\[\]@!$&'()*+,;=%]*)/g;
-
-    return js.replace(re, (match) => {
-        try {
-            const u = new URL(match);
-            if (isBiliHost(u.hostname)) {
-                return proxyPath + '?url=' + encodeURIComponent(u.href);
-            }
-        } catch (e) {
-            // ignore
-        }
-        return match;
-    });
 }
 
 /**

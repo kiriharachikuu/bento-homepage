@@ -16,7 +16,6 @@ import {
     buildUpstreamHeaders,
     buildResponseHeaders,
     processHtml,
-    rewriteBiliUrlsInJs,
     detectContentType,
 } from '../lib/biliProxyCore.js';
 
@@ -95,6 +94,8 @@ export function onRequest(context) {
         if (!isBiliHost(targetUrl.hostname)) {
             return error(400, 'BAD_REQUEST', '目标域名不在白名单');
         }
+        // B 站 API 强制 https：http 请求会被 B 站拒绝（-400）
+        if (targetUrl.protocol === 'http:') targetUrl.protocol = 'https:';
 
         // 获取或生成 buvid
         const cookieHeader = request.headers.get('cookie') || '';
@@ -183,19 +184,14 @@ export function onRequest(context) {
             });
         }
 
-        // JS/CSS 等静态资源：缓存 7 天，JS 需要重写内部 URL
+        // JS/CSS 等静态资源：直接透传（缓存 7 天）
+        // 注意：不重写 JS 源码中的 URL —— 那会破坏 iframe-player-bridge 的 postMessage
+        // targetOrigin / origin 白名单校验（导致播放器握手失败、错误码 3107）。
+        // API 请求由注入脚本劫持 fetch/XHR 处理，静态资源由 HTML 重写处理。
         if (ct.isJs || ct.isCss) {
             newHeaders.set('cache-control', 'public, max-age=604800, immutable');
-            if (ct.isJs && request.method === 'GET') {
-                // 重写 JS 代码中的 B 站 API URL 为代理地址
-                let js = await res.text();
-                js = rewriteBiliUrlsInJs(js);
+            if (ct.isJs) {
                 newHeaders.set('content-type', 'application/javascript; charset=utf-8');
-                return new Response(js, {
-                    status: res.status,
-                    statusText: res.statusText,
-                    headers: newHeaders
-                });
             }
             return new Response(res.body, {
                 status: res.status,
