@@ -15,7 +15,7 @@ export class XingToneCard extends BaseCard {
 
   getContent() {
     return `
-      <a href="https://xingtone.site/" target="_blank" rel="noopener noreferrer" class="w-full flex-1 min-h-0 rounded-2xl overflow-hidden relative bg-gradient-to-br from-purple-700 via-violet-600 to-fuchsia-500 p-5 flex flex-col justify-between text-white group">
+      <a href="https://xingtone.chikuu.top/" target="_blank" rel="noopener noreferrer" class="w-full flex-1 min-h-0 rounded-2xl overflow-hidden relative bg-gradient-to-br from-purple-700 via-violet-600 to-fuchsia-500 p-5 flex flex-col justify-between text-white group">
         <!-- 装饰光晕 -->
         <div class="absolute -top-10 -right-10 w-32 h-32 rounded-full bg-white/10 blur-2xl"></div>
         <div class="absolute bottom-0 left-0 w-full h-1/2 bg-gradient-to-t from-black/20 to-transparent"></div>
